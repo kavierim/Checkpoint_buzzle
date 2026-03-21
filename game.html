@@ -614,7 +614,6 @@ async function loadGPX() {
         image:  txt(gget(wpt, 'image'))  || '',
         icon:   txt(gget(wpt, 'icon'))   || '',
       });
-      console.log('parsed loc:', name, 'icon:', txt(gget(wpt, 'icon')));
     }
   });
 
@@ -917,7 +916,7 @@ function renderMap() {
 
       // Icon inside the pin circle
       el.textContent = classes.includes('end-loc') ? '★'
-                     : classes.includes('collected') ? '✓'
+                     : classes === 'collected' ? '✓'
                      : (icon || '?');
 
       // Labels (absolute → don't shift pin position)
