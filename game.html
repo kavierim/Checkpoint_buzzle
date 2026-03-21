@@ -803,7 +803,7 @@ function applyMapRotation() {
   const indicator = document.getElementById('north-indicator');
   if (headingMode) {
     rotator.style.transform   = `rotate(${-currentHeading}deg)`;
-    indicator.style.transform = `rotate(${currentHeading}deg)`;
+    indicator.style.transform = `rotate(${-currentHeading}deg)`;
     indicator.classList.add('visible');
   } else {
     rotator.style.transform = '';
@@ -1341,7 +1341,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       headingMode = false;
       document.getElementById('btn-heading').classList.remove('active');
-      applyMapRotation();
     }
     applyMapRotation();
   });
