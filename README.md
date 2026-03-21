@@ -119,11 +119,13 @@ Avaa `game.gpx` tekstieditorissa ja muokkaa seuraavat kohdat:
     <game:id>1</game:id>
     <game:letter>K</game:letter>
     <game:hint>Vihjeteksti joka näkyy popup-ikkunassa.</game:hint>
+    <!-- Valinnainen: kuva näytetään popupissa vihjetekstin yläpuolella -->
+    <game:image>https://sinun-sivusi.fi/kuva1.jpg</game:image>
   </extensions>
 </wpt>
 ```
 
-`game:id` määrittää kirjainten järjestyksen loppunäytöllä (1, 2, 3...). Pisteet voi kerätä missä järjestyksessä tahansa.
+`game:id` määrittää kirjainten järjestyksen loppunäytöllä (1, 2, 3...). Pisteet voi kerätä missä järjestyksessä tahansa. `game:image` on valinnainen — jos kenttä puuttuu, popup näyttää vain vihjetekstin.
 
 ### 4. Tiedostojen lataus palvelimelle
 
@@ -158,13 +160,14 @@ Varmista että `game:mapImage`- ja `gpxUrl`-osoitteet `game.html`:ssä vastaavat
 | `game:checkAnswer` | boolean | `true` | Tarkistetaanko vastaus (`true`/`false`) |
 | `game:puzzleInstruction` | string | – | Ohjeteksti loppunäytöllä |
 | `game:puzzleAnswer` | string | – | Oikea vastaus (kirjainkoolla ei väliä) |
+| `game:hint` | string | – | Vihjeteksti keräilypisteen popupissa |
+| `game:image` | URL | – | (Valinnainen) Kuva keräilypisteen popupissa vihjetekstin yläpuolella |
 
 Lisäksi `game.html`:ssä on minimaalinen konfiguraatio:
 
 ```javascript
 const CONFIG = {
   gpxUrl: "https://sinun-sivusi.fi/game.gpx",  // GPX-tiedoston osoite
-  debug: false,   // true = testaa ilman GPS:ää klikkaamalla karttaa
 };
 ```
 
@@ -173,10 +176,12 @@ const CONFIG = {
 ## Testaus
 
 **Debug-tilassa** (ilman fyysistä liikettä):
-1. Aseta `debug: true` `game.html`-tiedoston `CONFIG`-objektissa
+1. Lisää `?debug` sivun URL-osoitteen loppuun (esim. `http://localhost:8000/game.html?debug`)
 2. Avaa peli selaimessa (voidaan testata myös ilman HTTPS:ää)
 3. Napauta karttaa → pelaajan sijainti siirtyy napautettuun kohtaan
 4. Geofence-säteet näkyvät kartalla katkoviivaympyröinä
+
+Debug-tila ei vaadi muutoksia `game.html`-tiedostoon.
 
 **Lokaalisti** (ei tarvitse palvelinta):
 ```bash

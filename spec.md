@@ -118,6 +118,7 @@ If a point's calculated pixel coordinate falls outside the map image area:
 - Modal overlay on top of the map with darkened backdrop
 - Contents:
   - Point name (heading)
+  - Image (optional — shown above hint text if `game:image` is set on the waypoint)
   - Hint text in Finnish (`hint`)
   - Collected letter displayed large (48 px, highlighted)
 - "Sulje" (Close) button → state POPUP_OPEN → PLAYING
@@ -180,11 +181,13 @@ const CONFIG = {
   // OR embed GPX directly for a fully self-contained single file:
   // gpxInline: `<?xml version="1.0" encoding="UTF-8"?><gpx>...</gpx>`,
 
-  debug: false,  // true = simulate GPS by clicking/tapping the map
+  debug: new URLSearchParams(location.search).has('debug'),
 };
 ```
 
 If `gpxInline` is set it takes precedence over `gpxUrl`.
+
+Debug mode is activated by appending `?debug` to the page URL — no code editing required. Example: `https://kempeleenlatu.fi/peli?debug`.
 
 ### Configuration: GPX File Format
 
@@ -246,6 +249,7 @@ If `gpxInline` is set it takes precedence over `gpxUrl`.
 | `game:id` | wpt/extensions | Integer — sort order for letters on end screen |
 | `game:letter` | wpt/extensions | Single letter collected at this point |
 | `game:hint` | wpt/extensions | Finnish hint shown in popup |
+| `game:image` | wpt/extensions | (Optional) URL of an image shown in the popup above the hint text |
 
 ### GPS to Pixel Coordinate Conversion
 
@@ -297,7 +301,7 @@ flowchart LR
 - Touch events attached to `map-world` (not `map-container`) so zoom +/− buttons remain tappable.
 
 ### Debug Mode
-When `debug: true` in CONFIG:
+When the `debug` URL parameter is present (e.g. `?debug`):
 - GPS position simulated by tapping anywhere on the map (no real GPS required)
 - Geofence radius visualized as a dashed circle around each point
 - Current GPS coordinates and accuracy shown at top of map
@@ -335,14 +339,20 @@ Copy the entire `game.html` content into a WordPress **Custom HTML** block. Uplo
 - [x] Coordinate conversion: Web Mercator Y-axis, natural image pixel dimensions
 - [x] Map display: natural image size, no object-fit cropping, pan+zoom system
 - [x] Map pan/zoom: one-finger pan, pinch zoom, scroll wheel, +/− buttons
-- [x] Debug mode: GPS simulation by tapping map + geofence circles visible
-- [x] Popup: does not auto-close
-- [x] Bottom bar: 60 px fixed, gradient circle icons matching map markers
+- [x] Debug mode: activated via `?debug` URL parameter — no code change needed; GPS simulation by tapping map + geofence circles visible
+- [x] Popup: does not auto-close; optional `game:image` shown above hint text if present
+- [x] Bottom bar: 60 px fixed, gradient circle icons matching map markers; rebuilt only on collection state change
 - [x] Off-screen points: clamped to map edge as small colored dot
 - [x] Letter order on end screen: sorted by `id` (not collection order)
-- [x] End location: only activates after all points collected; may share coords with start
+- [x] End location: only activates after all points collected; may share coords with start; distance shown at all times
 - [x] localStorage: key and schema defined
-- [x] Reset: "Aloita alusta" clears localStorage and reloads; also available mid-game via ↺ button
+- [x] Reset: "Aloita alusta" reloads page (clears state); also available mid-game via ↺ button
 - [x] Game title: from GPX `<metadata><name>`
 - [x] Answer checking: case-insensitive, whitespace trimmed
 - [x] Mid-game restart: ↺ button in header available at all times during PLAYING state
+- [x] Toast cooldown: 5 s between repeated toast messages
+- [x] Geofence collection: at most one point collected per GPS update
+- [x] Map interaction setup: `setupMapInteraction` runs only once (guarded)
+- [x] Map image load: uses `addEventListener('load', …)` with `complete` check to handle already-cached images
+- [x] Security: user-supplied text inserted via `textContent`, not `innerHTML`
+- [x] Zoom buttons: minimum 44 × 44 px tap target
