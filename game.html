@@ -296,6 +296,35 @@
       user-select: none;
     }
     .zoom-btn:active { background: rgba(233,69,96,0.7); }
+    .zoom-btn.active { background: rgba(233,69,96,0.85); }
+
+    #map-rotator {
+      position: absolute;
+      inset: 0;
+      transform-origin: center center;
+      transition: transform 0.12s linear;
+    }
+
+    /* North indicator — counter-rotates to always point north */
+    #north-indicator {
+      position: absolute;
+      top: 10px; left: 10px;
+      width: 36px; height: 36px;
+      background: rgba(22,33,62,0.9);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50%;
+      display: none;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      font-weight: 700;
+      z-index: 15;
+      pointer-events: none;
+      transition: transform 0.12s linear;
+    }
+    #north-indicator.visible { display: flex; }
+    #north-arrow { font-size: 16px; color: #e74c3c; line-height: 1; }
+    #north-label { font-size: 9px; color: #fff; }
+
 
     /* ── Bottom bar ───────────────────────────────────────────────────────── */
     #bottom-bar {
@@ -441,15 +470,22 @@
   </div>
   <div id="gps-warning">GPS-signaali heikko, odota…</div>
   <div id="map-container">
-    <div id="map-world">
-      <img id="map-image" alt="Kartta" draggable="false">
-      <div id="map-overlay">
-        <div id="player-dot"></div>
-        <div id="debug-info"></div>
+    <div id="map-rotator">
+      <div id="map-world">
+        <img id="map-image" alt="Kartta" draggable="false">
+        <div id="map-overlay">
+          <div id="player-dot"></div>
+          <div id="debug-info"></div>
+        </div>
       </div>
     </div>
     <div id="toast"></div>
+    <div id="north-indicator">
+      <div id="north-arrow">↑</div>
+      <div id="north-label">N</div>
+    </div>
     <div id="zoom-controls">
+      <div class="zoom-btn" id="btn-heading" title="Kulkusuunta ylhäällä">⬆</div>
       <div class="zoom-btn" id="btn-zoom-in">+</div>
       <div class="zoom-btn" id="btn-zoom-out">−</div>
     </div>
@@ -749,6 +785,66 @@ let   MIN_SCALE = 0.5;  // updated after image loads
 const MAX_SCALE = 6;
 const mapView   = { scale: 1, tx: 0, ty: 0 };
 
+// ── Heading / compass mode ────────────────────────────────────────────────────
+let headingMode          = false;
+let currentHeading       = 0;   // degrees, clockwise from north
+let headingListenerAdded = false;
+
+// Convert screen-space drag delta to map-world local space (accounting for rotation)
+function screenToMapDelta(dx, dy) {
+  if (!headingMode) return [dx, dy];
+  const rad = currentHeading * Math.PI / 180;
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  return [cos * dx - sin * dy, sin * dx + cos * dy];
+}
+
+function applyMapRotation() {
+  const rotator   = document.getElementById('map-rotator');
+  const indicator = document.getElementById('north-indicator');
+  if (headingMode) {
+    rotator.style.transform   = `rotate(${-currentHeading}deg)`;
+    indicator.style.transform = `rotate(${currentHeading}deg)`;
+    indicator.classList.add('visible');
+  } else {
+    rotator.style.transform = '';
+    indicator.classList.remove('visible');
+  }
+}
+
+function handleOrientation(event) {
+  let heading = null;
+  if (typeof event.webkitCompassHeading === 'number' && !isNaN(event.webkitCompassHeading)) {
+    // iOS: webkitCompassHeading is degrees clockwise from magnetic north
+    heading = event.webkitCompassHeading;
+  } else if (event.alpha !== null && event.absolute) {
+    // Android absolute: alpha is degrees counterclockwise from north
+    heading = (360 - event.alpha) % 360;
+  }
+  if (heading === null) return;
+  currentHeading = heading;
+  if (headingMode) applyMapRotation();
+}
+
+async function enableHeadingMode() {
+  if (!headingListenerAdded) {
+    // iOS 13+ requires explicit permission
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      try {
+        const perm = await DeviceOrientationEvent.requestPermission();
+        if (perm !== 'granted') { showToast('Kompassilupa evätty'); return false; }
+      } catch (_) { showToast('Kompassilupa epäonnistui'); return false; }
+    }
+    if (typeof DeviceOrientationEvent === 'undefined') {
+      showToast('Laite ei tue kompassia'); return false;
+    }
+    window.addEventListener('deviceorientationabsolute', handleOrientation);
+    window.addEventListener('deviceorientation',         handleOrientation);
+    headingListenerAdded = true;
+  }
+  return true;
+}
+
 function applyTransform() {
   document.getElementById('map-world').style.transform =
     `translate(${mapView.tx}px, ${mapView.ty}px) scale(${mapView.scale})`;
@@ -794,8 +890,9 @@ function setupMapInteraction() {
   });
   window.addEventListener('mousemove', e => {
     if (!drag) return;
-    mapView.tx = drag.tx + (e.clientX - drag.x);
-    mapView.ty = drag.ty + (e.clientY - drag.y);
+    const [dx, dy] = screenToMapDelta(e.clientX - drag.x, e.clientY - drag.y);
+    mapView.tx = drag.tx + dx;
+    mapView.ty = drag.ty + dy;
     clampTranslation();
     applyTransform();
   });
@@ -824,8 +921,11 @@ function setupMapInteraction() {
 
     if (touches.length === 1 && lastTouches.length === 1) {
       // Pan
-      mapView.tx += touches[0].clientX - lastTouches[0].clientX;
-      mapView.ty += touches[0].clientY - lastTouches[0].clientY;
+      const [dx, dy] = screenToMapDelta(
+        touches[0].clientX - lastTouches[0].clientX,
+        touches[0].clientY - lastTouches[0].clientY);
+      mapView.tx += dx;
+      mapView.ty += dy;
       clampTranslation();
       applyTransform();
 
@@ -1231,6 +1331,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   document.getElementById('btn-start').addEventListener('click', () => startGame());
+
+  document.getElementById('btn-heading').addEventListener('click', async () => {
+    if (!headingMode) {
+      const ok = await enableHeadingMode();
+      if (!ok) return;
+      headingMode = true;
+      document.getElementById('btn-heading').classList.add('active');
+    } else {
+      headingMode = false;
+      document.getElementById('btn-heading').classList.remove('active');
+      applyMapRotation();
+    }
+    applyMapRotation();
+  });
 
   document.getElementById('btn-retry').addEventListener('click', () => location.reload());
 
