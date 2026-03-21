@@ -1,0 +1,6 @@
+# Claude internal files
+.claude/
+
+# Old map versions
+kartta_1.png
+kartta_2.png

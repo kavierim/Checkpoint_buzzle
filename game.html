@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Paikannusarvoitus</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      height: 100vh;    /* fallback for older iOS */
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button {
+      touch-action: manipulation;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      min-height: 44px;
+      padding: 10px 20px;
+    }
+
+    /* ── Screens ─────────────────────────────────────────────────────────── */
+    .screen { display: none; flex-direction: column; height: 100%; }
+    .screen.active { display: flex; }
+
+    /* ── Start screen ────────────────────────────────────────────────────── */
+    #screen-start {
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      text-align: center;
+      background: linear-gradient(160deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      gap: 16px;
+    }
+    #screen-start .icon { font-size: 56px; }
+    #start-title { font-size: 26px; font-weight: 800; }
+    #screen-start p { font-size: 15px; color: #99aabb; line-height: 1.6; max-width: 300px; }
+    #btn-start {
+      background: #e94560;
+      color: #fff;
+      font-size: 18px;
+      padding: 14px 48px;
+      border-radius: 50px;
+      margin-top: 8px;
+      box-shadow: 0 4px 20px rgba(233, 69, 96, 0.4);
+    }
+    #btn-start:disabled { background: #555; box-shadow: none; cursor: default; }
+    #loading-indicator { font-size: 13px; color: #778899; }
+
+    /* ── Error screen ─────────────────────────────────────────────────────── */
+    #screen-error {
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      text-align: center;
+      gap: 12px;
+    }
+    #screen-error .icon { font-size: 48px; }
+    #error-title { font-size: 20px; color: #e94560; }
+    #error-message { font-size: 15px; color: #99aabb; line-height: 1.6; max-width: 300px; }
+    #btn-retry { background: #e94560; color: #fff; margin-top: 8px; }
+
+    /* ── Game screen ──────────────────────────────────────────────────────── */
+    #screen-game { flex-direction: column; }
+
+    #game-header {
+      height: 40px;
+      background: #16213e;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px 0 12px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    #btn-restart-mid {
+      font-size: 11px;
+      font-weight: 600;
+      color: #778899;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      padding: 4px 8px;
+      min-height: unset;
+      height: 28px;
+    }
+    #btn-restart-mid:active { background: rgba(233,69,96,0.3); color: #fff; }
+
+    #gps-warning {
+      background: #f39c12;
+      color: #000;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      padding: 5px;
+      flex-shrink: 0;
+      display: none;
+    }
+    #gps-warning.visible { display: block; }
+
+    #map-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      touch-action: none;
+      background: #0f3460;
+    }
+
+    #map-world {
+      position: absolute;
+      transform-origin: 0 0;
+      will-change: transform;
+      cursor: grab;
+    }
+    #map-world.dragging { cursor: grabbing; }
+
+    #map-image {
+      display: block;
+      -webkit-user-drag: none;
+      pointer-events: none;
+    }
+
+    #map-overlay { position: absolute; inset: 0; }
+
+    /* Toast is outside map-world so it stays fixed on screen */
+
+    /* Player dot */
+    #player-dot {
+      position: absolute;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #3498db;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 5px rgba(52,152,219,0.25);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 5;
+      display: none;
+      transition: left 0.8s ease, top 0.8s ease;
+    }
+    #player-dot.weak { background: #7f8c8d; box-shadow: 0 0 0 5px rgba(127,140,141,0.25); }
+
+    /* Map pin markers */
+    @keyframes pin-pulse {
+      0%, 100% { box-shadow: 0 4px 14px rgba(231,76,60,.55), 0 0 0 0 rgba(231,76,60,.35); }
+      60%       { box-shadow: 0 4px 14px rgba(231,76,60,.55), 0 0 0 13px rgba(231,76,60,0); }
+    }
+    @keyframes end-pulse {
+      0%, 100% { box-shadow: 0 4px 18px rgba(255,200,0,.65), 0 0 0 0 rgba(255,200,0,.4); }
+      60%       { box-shadow: 0 4px 18px rgba(255,200,0,.65), 0 0 0 15px rgba(255,200,0,0); }
+    }
+
+    /* Pin circle — GPS coord is at its center */
+    .map-pin {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.95);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; line-height: 1;
+      z-index: 4; cursor: pointer;
+      transition: transform .15s;
+    }
+    .map-pin:active { transform: translate(-50%,-50%) scale(.88); }
+
+
+    /* Labels: absolute → don't affect pin-circle position */
+    .pin-labels {
+      position: absolute;
+      top: calc(100% + 11px);
+      left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+      pointer-events: none; white-space: nowrap;
+    }
+    .pin-label {
+      font-size: 11px; font-weight: 700; color: #fff;
+      text-shadow: 0 1px 4px #000, 0 0 6px rgba(0,0,0,.8);
+    }
+    .pin-dist {
+      font-size: 10px; color: #ffd700;
+      text-shadow: 0 1px 3px rgba(0,0,0,.9);
+    }
+
+    /* Uncollected — red, pulsing */
+    .map-pin.not-collected {
+      background: linear-gradient(145deg, #ff6b35, #e74c3c);
+      box-shadow: 0 4px 14px rgba(231,76,60,.55), 0 0 0 0 rgba(231,76,60,.35);
+      animation: pin-pulse 2.2s ease-in-out infinite;
+      color: #fff;
+    }
+    /* Collected — green */
+    .map-pin.collected {
+      background: linear-gradient(145deg, #2ecc71, #27ae60);
+      box-shadow: 0 4px 12px rgba(46,204,113,.5);
+      color: #fff;
+    }
+
+    /* End location — gold, pulsing */
+    .map-pin.end-loc {
+      width: 42px; height: 42px; font-size: 22px;
+      background: linear-gradient(145deg, #ffe033, #ff9f00);
+      box-shadow: 0 4px 18px rgba(255,200,0,.65), 0 0 0 0 rgba(255,200,0,.4);
+      animation: end-pulse 2s ease-in-out infinite;
+      color: #7b4a00;
+    }
+
+    /* End location — inactive (muted) */
+    .map-pin.end-loc.inactive {
+      background: linear-gradient(145deg, #8e9eab, #6d7f8c);
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+      animation: none; opacity: .65; color: #ddd;
+    }
+
+    /* Off-screen edge indicators */
+    .edge-indicator {
+      position: absolute;
+      width: 13px; height: 13px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.8);
+      transform: translate(-50%, -50%);
+      pointer-events: none; z-index: 4;
+    }
+    .edge-indicator.not-collected { background: #e74c3c; box-shadow: 0 2px 6px rgba(231,76,60,.6); }
+    .edge-indicator.collected     { background: #2ecc71; box-shadow: 0 2px 6px rgba(46,204,113,.6); }
+
+    /* Debug geofence circle */
+    .debug-geofence {
+      position: absolute; border-radius: 50%;
+      border: 1px dashed rgba(255,255,255,0.35);
+      transform: translate(-50%, -50%);
+      pointer-events: none; z-index: 3;
+    }
+
+    /* Debug info overlay */
+    #debug-info {
+      position: absolute; top: 4px; left: 4px;
+      background: rgba(0,0,0,0.72); color: #00ff88;
+      font-size: 11px; font-family: monospace;
+      padding: 4px 8px; border-radius: 4px;
+      pointer-events: none; z-index: 10; display: none;
+    }
+
+    /* Toast stays fixed over the map (outside map-world) */
+    #toast {
+      position: absolute; bottom: 72px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.82); color: #fff;
+      padding: 9px 18px; border-radius: 20px;
+      font-size: 13px; font-weight: 600;
+      white-space: nowrap; pointer-events: none;
+      z-index: 20; opacity: 0; transition: opacity 0.3s;
+    }
+    #toast.visible { opacity: 1; }
+
+    /* Zoom controls */
+    #zoom-controls {
+      position: absolute;
+      bottom: 10px; right: 10px;
+      display: flex; flex-direction: column; gap: 4px;
+      z-index: 15;
+    }
+    .zoom-btn {
+      width: 36px; height: 36px;
+      background: rgba(22,33,62,0.9);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: #fff; font-size: 20px; font-weight: 300;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; touch-action: manipulation;
+      user-select: none;
+    }
+    .zoom-btn:active { background: rgba(233,69,96,0.7); }
+
+    /* ── Bottom bar ───────────────────────────────────────────────────────── */
+    #bottom-bar {
+      height: 60px;
+      background: #16213e;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 0 8px; flex-shrink: 0; overflow-x: auto;
+    }
+    .bar-btn {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px; min-width: 44px; min-height: 44px;
+      padding: 4px 6px; border-radius: 8px;
+      cursor: pointer; touch-action: manipulation;
+      transition: background 0.15s; flex-shrink: 0;
+    }
+    .bar-btn:active { background: rgba(255,255,255,0.1); }
+    .bar-pin {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.85);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 900; color: #fff;
+    }
+    .bar-btn.not-collected .bar-pin {
+      background: linear-gradient(145deg, #ff6b35, #e74c3c);
+      box-shadow: 0 2px 6px rgba(231,76,60,.5);
+    }
+    .bar-btn.collected .bar-pin {
+      background: linear-gradient(145deg, #2ecc71, #27ae60);
+      box-shadow: 0 2px 6px rgba(46,204,113,.5);
+    }
+    .bar-btn .bar-num { font-size: 9px; color: #778899; }
+    .bar-btn.collected .bar-num { color: #2ecc71; }
+    .bar-end {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px; min-width: 44px; min-height: 44px;
+      padding: 4px 6px; flex-shrink: 0;
+    }
+    .bar-pin-end {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.85);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      background: linear-gradient(145deg, #8e9eab, #6d7f8c);
+      filter: grayscale(1) opacity(0.4);
+      transition: filter .4s, background .4s, box-shadow .4s;
+    }
+    .bar-end.active .bar-pin-end {
+      background: linear-gradient(145deg, #ffe033, #ff9f00);
+      box-shadow: 0 2px 8px rgba(255,200,0,.6);
+      filter: none;
+    }
+    .bar-end .bar-lbl { font-size: 9px; color: #778899; }
+    .bar-end.active .bar-lbl { color: #ffd700; }
+    .bar-sep { width: 1px; height: 30px; background: rgba(255,255,255,0.1); flex-shrink: 0; }
+
+    /* ── Popup overlay ───────────────────────────────────────────────────── */
+    #popup-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.72); z-index: 100;
+      align-items: center; justify-content: center; padding: 24px;
+    }
+    #popup-overlay.visible { display: flex; }
+    #popup-box {
+      background: #16213e; border-radius: 18px;
+      padding: 28px 24px 24px; width: 100%; max-width: 360px;
+      text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    }
+    #popup-name {
+      font-size: 12px; font-weight: 700; color: #778899;
+      text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px;
+    }
+    #popup-hint { font-size: 16px; line-height: 1.55; color: #ccd6e0; margin-bottom: 20px; }
+    #popup-letter {
+      font-size: 72px; font-weight: 800; color: #ffd700;
+      line-height: 1; margin-bottom: 24px;
+      text-shadow: 0 0 24px rgba(255,215,0,0.35);
+    }
+    #btn-close-popup { background: #e94560; color: #fff; width: 100%; font-size: 16px; }
+
+    /* ── End screen ──────────────────────────────────────────────────────── */
+    #screen-end {
+      padding: 24px 20px 32px; overflow-y: auto;
+      background: linear-gradient(160deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      gap: 14px;
+    }
+    #screen-end h2 { text-align: center; font-size: 22px; font-weight: 800; }
+    #end-location-text { text-align: center; font-size: 14px; color: #99aabb; line-height: 1.6; }
+    #letters-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .letter-card { background: #0f3460; border-radius: 12px; padding: 12px 14px; text-align: center; min-width: 68px; }
+    .lc-letter { font-size: 40px; font-weight: 800; color: #ffd700; line-height: 1; }
+    .lc-name   { font-size: 11px; color: #778899; margin-top: 4px; }
+    #puzzle-instruction { text-align: center; font-size: 15px; color: #ccd6e0; }
+    #answer-input {
+      width: 100%; padding: 13px 16px; font-size: 22px;
+      text-align: center; text-transform: uppercase; letter-spacing: 5px;
+      background: #0f3460; border: 2px solid #1a4a80; border-radius: 10px; color: #fff;
+    }
+    #answer-input:focus { outline: none; border-color: #e94560; }
+    #answer-feedback {
+      text-align: center; font-size: 15px; font-weight: 700;
+      padding: 10px 14px; border-radius: 8px; display: none;
+    }
+    #answer-feedback.correct { background: rgba(46,204,113,0.18); color: #2ecc71; display: block; }
+    #answer-feedback.wrong   { background: rgba(231,76,60,0.18);  color: #e74c3c;  display: block; }
+    #btn-check   { width: 100%; background: #e94560; color: #fff; font-size: 16px; }
+    #btn-restart { width: 100%; background: #0f3460; color: #778899; font-size: 15px; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════ SCREENS ══════════════════════════════════ -->
+
+<!-- Start screen -->
+<div id="screen-start" class="screen active">
+  <div class="icon">🗺️</div>
+  <div id="start-title">Ladataan…</div>
+  <p>Siirry pisteisiin kartalla ja kerää vihjeet.<br>Lopuksi palaa loppupisteeseen ratkaisemaan arvoitus.</p>
+  <button id="btn-start" disabled>Aloita peli</button>
+  <div id="loading-indicator">Ladataan pelitietoja…</div>
+</div>
+
+<!-- Error screen -->
+<div id="screen-error" class="screen">
+  <div class="icon">📍</div>
+  <div id="error-title">Virhe</div>
+  <p id="error-message"></p>
+  <button id="btn-retry">Yritä uudelleen</button>
+</div>
+
+<!-- Game screen -->
+<div id="screen-game" class="screen">
+  <div id="game-header">
+    <span id="game-title"></span>
+    <button id="btn-restart-mid">↺ Alusta</button>
+  </div>
+  <div id="gps-warning">GPS-signaali heikko, odota…</div>
+  <div id="map-container">
+    <div id="map-world">
+      <img id="map-image" alt="Kartta" draggable="false">
+      <div id="map-overlay">
+        <div id="player-dot"></div>
+        <div id="debug-info"></div>
+      </div>
+    </div>
+    <div id="toast"></div>
+    <div id="zoom-controls">
+      <div class="zoom-btn" id="btn-zoom-in">+</div>
+      <div class="zoom-btn" id="btn-zoom-out">−</div>
+    </div>
+  </div>
+  <div id="bottom-bar"></div>
+</div>
+
+<!-- End screen -->
+<div id="screen-end" class="screen">
+  <h2 id="end-title"></h2>
+  <p id="end-location-text"></p>
+  <div id="letters-grid"></div>
+  <p id="puzzle-instruction"></p>
+  <input id="answer-input" type="text" placeholder="Kirjoita sana…"
+         autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+  <div id="answer-feedback"></div>
+  <button id="btn-check">Tarkista vastaus</button>
+  <button id="btn-restart">Aloita alusta</button>
+</div>
+
+<!-- Popup overlay -->
+<div id="popup-overlay">
+  <div id="popup-box">
+    <div id="popup-name"></div>
+    <div id="popup-hint"></div>
+    <div id="popup-letter"></div>
+    <button id="btn-close-popup">Sulje</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ CONFIG ═════════════════════════════════ -->
+<script>
+// Minimal config — all game content is loaded from GPX.
+// Use gpxInline for a self-contained single-file WordPress embed,
+// or gpxUrl to load from a separate file on the server.
+const CONFIG = {
+  // Option 1: load GPX from URL (recommended for WordPress)
+  gpxUrl: "https://kempeleenlatu.fi/game.gpx",
+
+  // Option 2: embed GPX directly (uncomment gpxInline and comment out gpxUrl)
+  // gpxInline: `<?xml version="1.0" encoding="UTF-8"?>
+  // <gpx version="1.1" ...> ... </gpx>`,
+
+  debug: false,
+};
+</script>
+
+<!-- ═══════════════════════════════ GAME LOGIC ═══════════════════════════════ -->
+<script>
+// ── GPX loader ────────────────────────────────────────────────────────────────
+async function loadGPX() {
+  let text;
+
+  if (CONFIG.gpxInline) {
+    text = CONFIG.gpxInline;
+  } else {
+    const res = await fetch(CONFIG.gpxUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    text = await res.text();
+  }
+
+  const xml = new DOMParser().parseFromString(text, 'application/xml');
+
+  // Check for XML parse errors
+  if (xml.querySelector('parsererror')) throw new Error('GPX-tiedosto on virheellinen XML.');
+
+  const NS  = 'http://www.topografix.com/GPX/1/1';
+  const GNS = 'https://kempeleenlatu.fi/gpx-game';
+
+  const get  = (el, tag) => el.getElementsByTagNameNS(NS,  tag)[0];
+  const gget = (el, tag) => el.getElementsByTagNameNS(GNS, tag)[0];
+  const txt  = (el)      => el ? el.textContent.trim() : null;
+
+  const meta   = get(xml, 'metadata');
+  const bounds = get(meta, 'bounds');
+  const ext    = get(meta, 'extensions');
+
+  if (!meta)   throw new Error('GPX: <metadata> puuttuu.');
+  if (!bounds) throw new Error('GPX: <bounds> puuttuu metadatasta.');
+  if (!ext)    throw new Error('GPX: <extensions> puuttuu metadatasta.');
+
+  // Parse waypoints
+  const wpts  = Array.from(xml.getElementsByTagNameNS(NS, 'wpt'));
+  const locs  = [];
+  let   endLoc = null;
+
+  wpts.forEach(wpt => {
+    const lat  = parseFloat(wpt.getAttribute('lat'));
+    const lon  = parseFloat(wpt.getAttribute('lon'));
+    const name = txt(get(wpt, 'name'));
+    const type = txt(get(wpt, 'type'));
+
+    if (type === 'end') {
+      endLoc = { name, lat, lon, text: txt(get(wpt, 'desc')) || '' };
+    } else {
+      locs.push({
+        id:     parseInt(txt(gget(wpt, 'id'))) || locs.length + 1,
+        name,   lat, lon,
+        letter: txt(gget(wpt, 'letter')) || '?',
+        hint:   txt(gget(wpt, 'hint'))   || '',
+      });
+    }
+  });
+
+  if (!endLoc)       throw new Error('GPX: loppupistettä (type=end) ei löydy.');
+  if (locs.length === 0) throw new Error('GPX: keräilypisteitä (type=collect) ei löydy.');
+
+  locs.sort((a, b) => a.id - b.id);
+
+  return {
+    title:            txt(get(meta, 'name')) || 'Paikannusarvoitus',
+    mapImage:         txt(gget(ext, 'mapImage')) || '',
+    mapBounds: {
+      topLeft:     { lat: parseFloat(bounds.getAttribute('maxlat')),
+                     lon: parseFloat(bounds.getAttribute('minlon')) },
+      bottomRight: { lat: parseFloat(bounds.getAttribute('minlat')),
+                     lon: parseFloat(bounds.getAttribute('maxlon')) },
+    },
+    geofenceRadius:   parseFloat(txt(gget(ext, 'geofenceRadius')))  || 15,
+    gpsAccuracyLimit: parseFloat(txt(gget(ext, 'gpsAccuracyLimit'))) || 30,
+    checkAnswer:      txt(gget(ext, 'checkAnswer')) !== 'false',
+    debug:            CONFIG.debug,
+    endLocation:      endLoc,
+    locations:        locs,
+    puzzle: {
+      instruction: txt(gget(ext, 'puzzleInstruction')) || '',
+      answer:      txt(gget(ext, 'puzzleAnswer'))      || '',
+    },
+  };
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'location_puzzle_state';
+
+let gameConfig       = null;  // populated by loadGPX() before startGame()
+let debugHandlerAdded = false; // guard against duplicate debug click listeners
+
+const state = {
+  screen:          'START',
+  collected:       [],
+  endReached:      false,
+  activePopupId:   null,
+  playerLat:       null,
+  playerLon:       null,
+  playerAccuracy:  null,
+  watchId:         null,
+};
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+function loadProgress() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (s) {
+      state.collected  = Array.isArray(s.collected) ? s.collected : [];
+      state.endReached = !!s.endReached;
+    }
+  } catch (_) {}
+}
+
+function saveProgress() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      collected:  state.collected,
+      endReached: state.endReached,
+    }));
+  } catch (_) {}
+}
+
+function clearProgress() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+  state.collected  = [];
+  state.endReached = false;
+}
+
+// ── Maths ─────────────────────────────────────────────────────────────────────
+function haversine(lat1, lon1, lat2, lon2) {
+  const R    = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a    = Math.sin(dLat / 2) ** 2
+             + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+             * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+// Web Mercator helpers (OpenStreetMap uses EPSG:3857)
+function latToMerc(lat) {
+  const r = lat * Math.PI / 180;
+  return Math.log(Math.tan(Math.PI / 4 + r / 2));
+}
+function mercToLat(m) {
+  return (2 * Math.atan(Math.exp(m)) - Math.PI / 2) * 180 / Math.PI;
+}
+
+function gpsToPixel(lat, lon) {
+  const b   = gameConfig.mapBounds;
+  const img = document.getElementById('map-image');
+  const W_i = img.naturalWidth  || 1000;
+  const H_i = img.naturalHeight || 1000;
+
+  const relX = (lon - b.topLeft.lon) / (b.bottomRight.lon - b.topLeft.lon);
+  const mY   = latToMerc(lat);
+  const mTop = latToMerc(b.topLeft.lat);
+  const mBot = latToMerc(b.bottomRight.lat);
+  const relY = (mTop - mY) / (mTop - mBot);
+
+  return { x: relX * W_i, y: relY * H_i };
+}
+
+function pxPerMetre(lat, lon) {
+  const { x: x1 } = gpsToPixel(lat, lon);
+  const { x: x2 } = gpsToPixel(lat, lon + 0.001);
+  return Math.abs(x2 - x1) / haversine(lat, lon, lat, lon + 0.001);
+}
+
+// ── Pan / Zoom ────────────────────────────────────────────────────────────────
+let   MIN_SCALE = 0.5;  // updated after image loads
+const MAX_SCALE = 6;
+const mapView   = { scale: 1, tx: 0, ty: 0 };
+
+function applyTransform() {
+  document.getElementById('map-world').style.transform =
+    `translate(${mapView.tx}px, ${mapView.ty}px) scale(${mapView.scale})`;
+}
+
+function clampTranslation() {
+  const c   = document.getElementById('map-container');
+  const img = document.getElementById('map-image');
+  const W_c = c.offsetWidth,  H_c = c.offsetHeight;
+  const W_i = img.naturalWidth  || W_c;
+  const H_i = img.naturalHeight || H_c;
+  const s   = mapView.scale;
+  const W_s = W_i * s, H_s = H_i * s;
+
+  // If image smaller than container: center it; otherwise clamp to edges
+  mapView.tx = W_s <= W_c ? (W_c - W_s) / 2 : Math.max(W_c - W_s, Math.min(0, mapView.tx));
+  mapView.ty = H_s <= H_c ? (H_c - H_s) / 2 : Math.max(H_c - H_s, Math.min(0, mapView.ty));
+}
+
+function zoomTo(newScale, pivotX, pivotY) {
+  newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+  const ratio = newScale / mapView.scale;
+  mapView.tx    = pivotX - ratio * (pivotX - mapView.tx);
+  mapView.ty    = pivotY - ratio * (pivotY - mapView.ty);
+  mapView.scale = newScale;
+  clampTranslation();
+  applyTransform();
+}
+
+function setupMapInteraction() {
+  const container = document.getElementById('map-container');
+  const world     = document.getElementById('map-world');
+
+  // ── Mouse drag ──
+  let drag = null;
+  world.addEventListener('mousedown', e => {
+    drag = { x: e.clientX, y: e.clientY, tx: mapView.tx, ty: mapView.ty };
+    world.classList.add('dragging');
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!drag) return;
+    mapView.tx = drag.tx + (e.clientX - drag.x);
+    mapView.ty = drag.ty + (e.clientY - drag.y);
+    clampTranslation();
+    applyTransform();
+  });
+  window.addEventListener('mouseup', () => { drag = null; world.classList.remove('dragging'); });
+
+  // ── Scroll wheel zoom ──
+  container.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect   = container.getBoundingClientRect();
+    const pivotX = e.clientX - rect.left;
+    const pivotY = e.clientY - rect.top;
+    zoomTo(mapView.scale * (e.deltaY < 0 ? 1.15 : 0.87), pivotX, pivotY);
+  }, { passive: false });
+
+  // ── Touch: pan + pinch-to-zoom (on map-world, not container, so zoom buttons stay clickable) ──
+  let lastTouches = [];
+  world.addEventListener('touchstart', e => {
+    e.preventDefault();
+    lastTouches = Array.from(e.touches);
+  }, { passive: false });
+
+  world.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const touches = Array.from(e.touches);
+    const rect    = container.getBoundingClientRect();
+
+    if (touches.length === 1 && lastTouches.length === 1) {
+      // Pan
+      mapView.tx += touches[0].clientX - lastTouches[0].clientX;
+      mapView.ty += touches[0].clientY - lastTouches[0].clientY;
+      clampTranslation();
+      applyTransform();
+
+    } else if (touches.length === 2 && lastTouches.length === 2) {
+      // Pinch zoom
+      const prevDist = Math.hypot(
+        lastTouches[0].clientX - lastTouches[1].clientX,
+        lastTouches[0].clientY - lastTouches[1].clientY);
+      const currDist = Math.hypot(
+        touches[0].clientX - touches[1].clientX,
+        touches[0].clientY - touches[1].clientY);
+      if (prevDist === 0) { lastTouches = touches; return; }
+
+      const pivotX = ((touches[0].clientX + touches[1].clientX) / 2) - rect.left;
+      const pivotY = ((touches[0].clientY + touches[1].clientY) / 2) - rect.top;
+      zoomTo(mapView.scale * (currDist / prevDist), pivotX, pivotY);
+    }
+    lastTouches = touches;
+  }, { passive: false });
+
+  world.addEventListener('touchend', e => {
+    lastTouches = Array.from(e.touches);
+  });
+
+  // ── Button zoom ──
+  const W = container.offsetWidth, H = container.offsetHeight;
+  document.getElementById('btn-zoom-in') .addEventListener('click', () => zoomTo(mapView.scale * 1.4, W / 2, H / 2));
+  document.getElementById('btn-zoom-out').addEventListener('click', () => zoomTo(mapView.scale / 1.4, W / 2, H / 2));
+}
+
+// ── Screen management ─────────────────────────────────────────────────────────
+const SCREEN_IDS = {
+  START:               'screen-start',
+  PLAYING:             'screen-game',
+  POPUP_OPEN:          'screen-game',
+  END_SCREEN:          'screen-end',
+  ERROR_NO_PERMISSION: 'screen-error',
+  ERROR_TIMEOUT:       'screen-error',
+};
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const id = SCREEN_IDS[name];
+  if (id) document.getElementById(id).classList.add('active');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('visible');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('visible'), 2800);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function buildBottomBar() {
+  const bar = document.getElementById('bottom-bar');
+  bar.innerHTML = '';
+
+  gameConfig.locations.forEach(loc => {
+    const collected = state.collected.includes(loc.id);
+    const btn       = document.createElement('div');
+    btn.className   = `bar-btn ${collected ? 'collected' : 'not-collected'}`;
+    btn.innerHTML   = `<div class="bar-pin">${collected ? '✓' : '?'}</div><div class="bar-num">${loc.id}</div>`;
+    if (collected) btn.addEventListener('click', () => openPopup(loc.id));
+    bar.appendChild(btn);
+  });
+
+  const sep = document.createElement('div');
+  sep.className = 'bar-sep';
+  bar.appendChild(sep);
+
+  const allCollected = state.collected.length === gameConfig.locations.length;
+  const endBtn       = document.createElement('div');
+  endBtn.id          = 'bar-end';
+  endBtn.className   = `bar-end ${allCollected ? 'active' : ''}`;
+  endBtn.innerHTML   = `<div class="bar-pin-end">★</div><div class="bar-lbl">Loppu</div>`;
+  bar.appendChild(endBtn);
+}
+
+function renderMap() {
+  document.querySelectorAll('.map-pin, .edge-indicator, .debug-geofence').forEach(e => e.remove());
+
+  const overlay = document.getElementById('map-overlay');
+  const img     = document.getElementById('map-image');
+  const W       = img.naturalWidth  || document.getElementById('map-container').offsetWidth;
+  const H       = img.naturalHeight || document.getElementById('map-container').offsetHeight;
+  const EDGE    = 10;
+
+  function placePoint(lat, lon, classes, labelText, distText, onClick) {
+    const { x, y } = gpsToPixel(lat, lon);
+    const onScreen  = x >= 0 && x <= W && y >= 0 && y <= H;
+
+    if (onScreen) {
+      const el     = document.createElement('div');
+      el.className = 'map-pin ' + classes;
+      el.style.left = x + 'px';
+      el.style.top  = y + 'px';
+
+      // Icon inside the pin circle
+      el.textContent = classes.includes('end-loc') ? '★'
+                     : classes.includes('collected') ? '✓' : '?';
+
+      // Labels (absolute → don't shift pin position)
+      if (labelText || distText) {
+        const wrap = document.createElement('div');
+        wrap.className = 'pin-labels';
+        if (labelText) {
+          const lbl = document.createElement('div');
+          lbl.className = 'pin-label';
+          lbl.textContent = labelText;
+          wrap.appendChild(lbl);
+        }
+        if (distText) {
+          const dist = document.createElement('div');
+          dist.className = 'pin-dist';
+          dist.textContent = distText;
+          wrap.appendChild(dist);
+        }
+        el.appendChild(wrap);
+      }
+
+      if (onClick) el.addEventListener('click', onClick);
+      overlay.appendChild(el);
+
+      if (gameConfig.debug) {
+        const r   = pxPerMetre(lat, lon) * gameConfig.geofenceRadius;
+        const cir = document.createElement('div');
+        cir.className   = 'debug-geofence';
+        cir.style.left  = x + 'px';
+        cir.style.top   = y + 'px';
+        cir.style.width = cir.style.height = (r * 2) + 'px';
+        overlay.appendChild(cir);
+      }
+
+    } else {
+      // Clamp to map edge via ray from center
+      const cx = W / 2, cy = H / 2;
+      const dx = x - cx, dy = y - cy;
+      if (dx === 0 && dy === 0) return; // point at exact center, skip indicator
+      const sx = dx !== 0 ? ((dx > 0 ? W - EDGE : EDGE) - cx) / dx : Infinity;
+      const sy = dy !== 0 ? ((dy > 0 ? H - EDGE : EDGE) - cy) / dy : Infinity;
+      const s  = Math.min(Math.abs(sx), Math.abs(sy));
+      const ex = Math.max(EDGE, Math.min(W - EDGE, cx + dx * s));
+      const ey = Math.max(EDGE, Math.min(H - EDGE, cy + dy * s));
+
+      const ind     = document.createElement('div');
+      ind.className = 'edge-indicator ' + (classes.includes('collected') ? 'collected' : 'not-collected');
+      ind.style.left = ex + 'px';
+      ind.style.top  = ey + 'px';
+      overlay.appendChild(ind);
+    }
+  }
+
+  gameConfig.locations.forEach(loc => {
+    const collected = state.collected.includes(loc.id);
+    const dist      = state.playerLat !== null && !collected
+      ? Math.round(haversine(state.playerLat, state.playerLon, loc.lat, loc.lon)) + ' m'
+      : null;
+    placePoint(loc.lat, loc.lon, collected ? 'collected' : 'not-collected', loc.name, dist,
+      collected ? () => openPopup(loc.id) : null);
+  });
+
+  const allCollected = state.collected.length === gameConfig.locations.length;
+  const endDist      = !allCollected && state.playerLat !== null
+    ? Math.round(haversine(state.playerLat, state.playerLon,
+        gameConfig.endLocation.lat, gameConfig.endLocation.lon)) + ' m'
+    : null;
+  placePoint(gameConfig.endLocation.lat, gameConfig.endLocation.lon,
+    `end-loc ${allCollected ? '' : 'inactive'}`,
+    gameConfig.endLocation.name, endDist, null);
+
+  if (state.playerLat !== null) {
+    const { x, y } = gpsToPixel(state.playerLat, state.playerLon);
+    const dot       = document.getElementById('player-dot');
+    dot.style.left    = x + 'px';
+    dot.style.top     = y + 'px';
+    dot.style.display = 'block';
+    dot.className     = state.playerAccuracy > gameConfig.gpsAccuracyLimit ? 'weak' : '';
+  }
+
+  if (gameConfig.debug) {
+    const dbg         = document.getElementById('debug-info');
+    dbg.style.display = 'block';
+    dbg.textContent   = state.playerLat !== null
+      ? `lat ${state.playerLat.toFixed(6)}  lon ${state.playerLon.toFixed(6)}  acc ${Math.round(state.playerAccuracy)}m`
+      : 'DEBUG — napauta karttaa sijoittaaksesi pelaajan';
+  }
+}
+
+// ── GPS callbacks ─────────────────────────────────────────────────────────────
+function onPosition(pos) {
+  const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+  state.playerLat      = lat;
+  state.playerLon      = lon;
+  state.playerAccuracy = accuracy;
+
+  const warn = document.getElementById('gps-warning');
+  accuracy > gameConfig.gpsAccuracyLimit
+    ? warn.classList.add('visible')
+    : warn.classList.remove('visible');
+
+  if (state.screen === 'PLAYING' || state.screen === 'POPUP_OPEN') {
+    renderMap();
+    buildBottomBar();
+  }
+
+  if (state.screen !== 'PLAYING') return;
+  if (accuracy > gameConfig.gpsAccuracyLimit) return;
+
+  gameConfig.locations.forEach(loc => {
+    if (state.collected.includes(loc.id)) return;
+    if (haversine(lat, lon, loc.lat, loc.lon) <= gameConfig.geofenceRadius) collectPoint(loc.id);
+  });
+
+  const allCollected = state.collected.length === gameConfig.locations.length;
+  if (haversine(lat, lon, gameConfig.endLocation.lat, gameConfig.endLocation.lon) <= gameConfig.geofenceRadius) {
+    allCollected
+      ? goToEndScreen()
+      : showToast(`Kerää ensin kaikki pisteet (${state.collected.length}/${gameConfig.locations.length})`);
+  }
+}
+
+function onGpsError(err) {
+  err.code === err.PERMISSION_DENIED
+    ? showError('ERROR_NO_PERMISSION',
+        'Sijaintilupa vaaditaan',
+        'Sijaintilupa vaaditaan pelin pelaamiseen. Salli sijainti selaimen asetuksista ja lataa sivu uudelleen.')
+    : showError('ERROR_TIMEOUT',
+        'Ei GPS-signaalia',
+        'Ei GPS-signaalia. Siirry ulos ja paina "Yritä uudelleen".');
+}
+
+function showError(type, title, msg) {
+  state.screen = type;
+  document.getElementById('error-title').textContent   = title;
+  document.getElementById('error-message').textContent = msg;
+  showScreen(type);
+}
+
+// ── Collect ───────────────────────────────────────────────────────────────────
+function collectPoint(id) {
+  if (state.collected.includes(id)) return;
+  state.collected.push(id);
+  saveProgress();
+  openPopup(id);
+}
+
+// ── Popup ─────────────────────────────────────────────────────────────────────
+function openPopup(id) {
+  const loc = gameConfig.locations.find(l => l.id === id);
+  if (!loc) return;
+  state.activePopupId = id;
+  state.screen        = 'POPUP_OPEN';
+  document.getElementById('popup-name').textContent   = loc.name;
+  document.getElementById('popup-hint').textContent   = loc.hint;
+  document.getElementById('popup-letter').textContent = loc.letter;
+  document.getElementById('popup-overlay').classList.add('visible');
+}
+
+function closePopup() {
+  state.screen        = 'PLAYING';
+  state.activePopupId = null;
+  document.getElementById('popup-overlay').classList.remove('visible');
+}
+
+// ── End screen ────────────────────────────────────────────────────────────────
+function goToEndScreen() {
+  state.screen     = 'END_SCREEN';
+  state.endReached = true;
+  saveProgress();
+  if (state.watchId !== null) { navigator.geolocation.clearWatch(state.watchId); state.watchId = null; }
+  buildEndScreen();
+  showScreen('END_SCREEN');
+}
+
+function buildEndScreen() {
+  document.getElementById('end-title').textContent          = gameConfig.title;
+  document.getElementById('end-location-text').textContent  = gameConfig.endLocation.text;
+  document.getElementById('puzzle-instruction').textContent = gameConfig.puzzle.instruction;
+
+  const grid = document.getElementById('letters-grid');
+  grid.innerHTML = '';
+  [...gameConfig.locations].sort((a, b) => a.id - b.id).forEach(loc => {
+    const card     = document.createElement('div');
+    card.className = 'letter-card';
+    card.innerHTML = `<div class="lc-letter">${loc.letter}</div><div class="lc-name">${loc.name}</div>`;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('btn-check').style.display = gameConfig.checkAnswer ? 'block' : 'none';
+  document.getElementById('answer-feedback').className = '';
+  document.getElementById('answer-input').value        = '';
+}
+
+// ── Start game (called after GPX is loaded) ───────────────────────────────────
+function startGame() {
+  if (!gameConfig) return; // GPX not yet loaded — button should be disabled, but guard anyway
+  loadProgress();
+
+  if (state.endReached) {
+    buildEndScreen();
+    state.screen = 'END_SCREEN';
+    showScreen('END_SCREEN');
+    return;
+  }
+
+  state.screen = 'PLAYING';
+  document.getElementById('game-title').textContent = gameConfig.title;
+  const mapImg = document.getElementById('map-image');
+  mapImg.src    = gameConfig.mapImage;
+  mapImg.onload = function() {
+    const W_i = this.naturalWidth, H_i = this.naturalHeight;
+    const W_c = document.getElementById('map-container').offsetWidth;
+    const H_c = document.getElementById('map-container').offsetHeight;
+    // Size map-world to match image
+    const world = document.getElementById('map-world');
+    world.style.width  = W_i + 'px';
+    world.style.height = H_i + 'px';
+    // Initial scale: fit full image in container (contain), then center
+    MIN_SCALE    = Math.min(W_c / W_i, H_c / H_i);
+    mapView.scale = MIN_SCALE;
+    clampTranslation();
+    applyTransform();
+    renderMap();
+  };
+  buildBottomBar();
+  showScreen('PLAYING');
+  setupMapInteraction();
+
+  if (gameConfig.debug) {
+    if (!debugHandlerAdded) {
+      document.getElementById('map-container').addEventListener('click', function(e) {
+        const rect = this.getBoundingClientRect();
+        const b    = gameConfig.mapBounds;
+        // Convert screen coords → map-world natural coords (account for pan/zoom)
+        const imgX  = (e.clientX - rect.left - mapView.tx) / mapView.scale;
+        const imgY  = (e.clientY - rect.top  - mapView.ty) / mapView.scale;
+        const img   = document.getElementById('map-image');
+        const W_i   = img.naturalWidth  || 1000;
+        const H_i   = img.naturalHeight || 1000;
+        const relX  = imgX / W_i;
+        const relY  = imgY / H_i;
+        const lon   = b.topLeft.lon + relX * (b.bottomRight.lon - b.topLeft.lon);
+        const mTop  = latToMerc(b.topLeft.lat);
+        const mBot  = latToMerc(b.bottomRight.lat);
+        const lat   = mercToLat(mTop - relY * (mTop - mBot));
+        onPosition({ coords: { latitude: lat, longitude: lon, accuracy: 5 } });
+      });
+      debugHandlerAdded = true;
+    }
+    renderMap();
+  } else {
+    if (!navigator.geolocation) {
+      showError('ERROR_NO_PERMISSION', 'Ei tuettu', 'Selaimesi ei tue GPS-paikannusta.');
+      return;
+    }
+    state.watchId = navigator.geolocation.watchPosition(onPosition, onGpsError, {
+      enableHighAccuracy: true, timeout: 10000, maximumAge: 0,
+    });
+  }
+}
+
+// ── Bootstrap ────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load GPX on page open, enable button when ready
+  try {
+    gameConfig = await loadGPX();
+    document.getElementById('start-title').textContent    = gameConfig.title;
+    document.getElementById('loading-indicator').textContent = '';
+    document.getElementById('btn-start').disabled         = false;
+  } catch (err) {
+    showError('ERROR_NO_PERMISSION', 'Latausvirhe',
+      `Pelin asetuksia ei voitu ladata. (${err.message})`);
+  }
+
+  document.getElementById('btn-start').addEventListener('click', () => startGame());
+
+  document.getElementById('btn-retry').addEventListener('click', () => {
+    state.screen = 'START';
+    showScreen('START');
+  });
+
+  document.getElementById('btn-close-popup').addEventListener('click', closePopup);
+
+  document.getElementById('btn-restart-mid').addEventListener('click', () => {
+    if (!confirm('Aloitetaanko peli alusta? Edistyminen häviää.')) return;
+    clearProgress();
+    if (state.watchId !== null) { navigator.geolocation.clearWatch(state.watchId); state.watchId = null; }
+    closePopup();
+    state.playerLat = state.playerLon = state.playerAccuracy = null;
+    mapView.scale = 1; mapView.tx = 0; mapView.ty = 0;
+    startGame();
+  });
+
+  document.getElementById('answer-input').addEventListener('input', e => {
+    e.target.value = e.target.value.toUpperCase();
+    document.getElementById('answer-feedback').className = '';
+  });
+
+  document.getElementById('btn-check').addEventListener('click', () => {
+    const input   = document.getElementById('answer-input').value.trim().toUpperCase();
+    const correct = gameConfig.puzzle.answer.trim().toUpperCase();
+    const fb      = document.getElementById('answer-feedback');
+    fb.className  = '';
+    if (input === correct) {
+      fb.textContent = 'Oikein! Hyvin pelattu! 🎉';
+      fb.className   = 'correct';
+    } else {
+      fb.textContent = 'Ei oikein, yritä uudelleen.';
+      fb.className   = 'wrong';
+    }
+  });
+
+  document.getElementById('btn-restart').addEventListener('click', () => {
+    clearProgress();
+    if (state.watchId !== null) { navigator.geolocation.clearWatch(state.watchId); state.watchId = null; }
+    state.playerLat = state.playerLon = state.playerAccuracy = null;
+    state.screen    = 'START';
+    showScreen('START');
+  });
+
+  window.addEventListener('resize', () => {
+    if (state.screen === 'PLAYING' || state.screen === 'POPUP_OPEN') renderMap();
+  });
+});
+</script>
+
+</body>
+</html>
