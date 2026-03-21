@@ -476,12 +476,83 @@
 // Use gpxInline for a self-contained single-file WordPress embed,
 // or gpxUrl to load from a separate file on the server.
 const CONFIG = {
-  // Option 1: load GPX from URL (recommended for WordPress)
-  gpxUrl: "./game.gpx",
+  // Option 1: embed GPX directly — single self-contained file, no caching issues
+  gpxInline: `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1"
+     creator="Paikannusarvoitus"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xmlns:game="https://kempeleenlatu.fi/gpx-game"
+     xsi:schemaLocation="http://www.topografix.com/GPX/1/1
+                         http://www.topografix.com/GPX/1/1/gpx.xsd">
 
-  // Option 2: embed GPX directly (uncomment gpxInline and comment out gpxUrl)
-  // gpxInline: `<?xml version="1.0" encoding="UTF-8"?>
-  // <gpx version="1.1" ...> ... </gpx>`,
+  <metadata>
+    <name>Kotiin päin</name>
+
+    <bounds minlat="64.896895" minlon="25.513276"
+            maxlat="64.909018" maxlon="25.544147"/>
+
+    <extensions>
+      <game:mapImage>./kartta.png</game:mapImage>
+      <game:geofenceRadius>15</game:geofenceRadius>
+      <game:gpsAccuracyLimit>30</game:gpsAccuracyLimit>
+      <game:checkAnswer>true</game:checkAnswer>
+      <game:puzzleInstruction>Muodosta sana kerätyistä kirjaimista. Vihje: se on paikka johon aina palataan.</game:puzzleInstruction>
+      <game:puzzleAnswer>KOTI</game:puzzleAnswer>
+    </extensions>
+  </metadata>
+
+  <wpt lat="64.900809" lon="25.527019">
+    <name>Pääskyläntie 2</name>
+    <type>end</type>
+    <desc>Olet kerännyt kaikki kirjaimet. Muodosta niistä sana — se kertoo missä olet nyt.</desc>
+  </wpt>
+
+  <wpt lat="64.905434" lon="25.520382">
+    <name>Koskela</name>
+    <type>collect</type>
+    <extensions>
+      <game:id>1</game:id>
+      <game:letter>K</game:letter>
+      <game:hint>Tämän paikan nimi paljastaa kaiken — kirjaimesi on sen ensimmäinen.</game:hint>
+      <game:icon>🌊</game:icon>
+    </extensions>
+  </wpt>
+
+  <wpt lat="64.9033" lon="25.5276">
+    <name>Leikkipuisto</name>
+    <type>collect</type>
+    <extensions>
+      <game:id>2</game:id>
+      <game:letter>O</game:letter>
+      <game:hint>Lasten nauru kaartuu ympyrän lailla — juuri kuten kirjaimesi muoto.</game:hint>
+    </extensions>
+  </wpt>
+
+  <wpt lat="64.904255" lon="25.532262">
+    <name>Työväentalo</name>
+    <type>collect</type>
+    <extensions>
+      <game:id>3</game:id>
+      <game:letter>T</game:letter>
+      <game:hint>Täällä on tehty töitä yhdessä. Kirjaimesi seisoo kuin tukeva teline — leveä hattu, suora selkä.</game:hint>
+    </extensions>
+  </wpt>
+
+  <wpt lat="64.9012" lon="25.5221">
+    <name>Bussipysäkki</name>
+    <type>collect</type>
+    <extensions>
+      <game:id>4</game:id>
+      <game:letter>I</game:letter>
+      <game:hint>Seisot paikallasi ja odotat — juuri kuten kirjaimesi: suora, yksinkertainen, kärsivällinen.</game:hint>
+    </extensions>
+  </wpt>
+
+</gpx>`,
+
+  // Option 2: load GPX from URL (use this for WordPress when GPX is on same server)
+  // gpxUrl: "./game.gpx",
 
   debug: new URLSearchParams(location.search).has('debug'),
 };
