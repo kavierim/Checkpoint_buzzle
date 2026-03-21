@@ -18,7 +18,7 @@
 
     <extensions>
       <!-- Karttakuvan URL WordPressistä -->
-      <game:mapImage>https://kempeleenlatu.fi/kartta.png</game:mapImage>
+      <game:mapImage>./kartta.png</game:mapImage>
 
       <!-- Peliasetukset -->
       <game:geofenceRadius>15</game:geofenceRadius>
