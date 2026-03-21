@@ -17,11 +17,11 @@ Play time: 5–10 minutes. All in-game UI text is in **Finnish**.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> LOADING
+    [*] --> START
 
-    LOADING --> PLAYING : GPS permission granted\n+ first position received
-    LOADING --> ERROR_NO_PERMISSION : GPS permission denied
-    LOADING --> ERROR_TIMEOUT : no signal after 10s
+    START --> PLAYING : GPS permission granted\n+ first position received
+    START --> ERROR_NO_PERMISSION : GPS permission denied
+    START --> ERROR_TIMEOUT : no signal after 10s
 
     PLAYING --> POPUP_OPEN : player arrives at collection point
     PLAYING --> ERROR_TIMEOUT : GPS signal lost
@@ -29,9 +29,9 @@ stateDiagram-v2
 
     POPUP_OPEN --> PLAYING : "Sulje" (Close) pressed
 
-    END_SCREEN --> LOADING : "Aloita alusta" (Restart) pressed\n[localStorage cleared]
+    END_SCREEN --> START : "Aloita alusta" (Restart) pressed\n[localStorage cleared]
 
-    ERROR_NO_PERMISSION --> LOADING : page reloaded
+    ERROR_NO_PERMISSION --> START : page reloaded
     ERROR_TIMEOUT --> PLAYING : retry pressed
 ```
 
@@ -118,16 +118,17 @@ If a point's calculated pixel coordinate falls outside the map image area:
 - Modal overlay on top of the map with darkened backdrop
 - Contents:
   - Point name (heading)
+  - Custom icon (optional — shown if `game:icon` is set; 48 px)
   - Image (optional — shown above hint text if `game:image` is set on the waypoint)
   - Hint text in Finnish (`hint`)
-  - Collected letter displayed large (48 px, highlighted)
+  - Collected letter displayed large (72 px, highlighted)
 - "Sulje" (Close) button → state POPUP_OPEN → PLAYING
 
 ### GPS Error States
 | Situation | Finnish message shown | Action |
 |---|---|---|
 | Permission denied | "Sijaintilupa vaaditaan..." | Instructions to browser settings, no auto-retry |
-| Timeout 10 s | "Ei GPS-signaalia. Siirry ulos." | Retry button |
+| Timeout 10 s | "Ei GPS-signaalia. Siirry ulos ja paina 'Yritä uudelleen'." | Retry button |
 | `accuracy > gpsAccuracyLimit` | "GPS-signaali heikko, odota..." | Warning banner, game continues |
 
 ### End Screen (state: END_SCREEN)
@@ -175,11 +176,11 @@ The game reads this on startup and resumes from where the player left off.
 
 ```javascript
 const CONFIG = {
-  // Load GPX from URL (used in production)
-  gpxUrl: "https://kempeleenlatu.fi/game.gpx",
+  // Option 1 (default): embed GPX directly — single self-contained file, no CORS issues
+  gpxInline: `<?xml version="1.0" encoding="UTF-8"?><gpx>...</gpx>`,
 
-  // OR embed GPX directly for a fully self-contained single file:
-  // gpxInline: `<?xml version="1.0" encoding="UTF-8"?><gpx>...</gpx>`,
+  // Option 2: load GPX from URL (use when GPX is on same server as the page)
+  // gpxUrl: "https://kempeleenlatu.fi/game.gpx",
 
   debug: new URLSearchParams(location.search).has('debug'),
 };
@@ -347,7 +348,7 @@ Copy the entire `game.html` content into a WordPress **Custom HTML** block. Uplo
 - [x] Letter order on end screen: sorted by `id` (not collection order)
 - [x] End location: only activates after all points collected; may share coords with start; distance shown at all times
 - [x] localStorage: key and schema defined
-- [x] Reset: "Aloita alusta" reloads page (clears state); also available mid-game via ↺ button
+- [x] Reset: "Aloita alusta" clears localStorage and returns to START state (no page reload); also available mid-game via ↺ button
 - [x] Game title: from GPX `<metadata><name>`
 - [x] Answer checking: case-insensitive, whitespace trimmed
 - [x] Mid-game restart: ↺ button in header available at all times during PLAYING state
