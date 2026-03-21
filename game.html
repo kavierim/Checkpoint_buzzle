@@ -614,6 +614,7 @@ async function loadGPX() {
         image:  txt(gget(wpt, 'image'))  || '',
         icon:   txt(gget(wpt, 'icon'))   || '',
       });
+      console.log('parsed loc:', name, 'icon:', txt(gget(wpt, 'icon')));
     }
   });
 
