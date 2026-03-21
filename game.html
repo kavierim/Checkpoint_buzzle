@@ -185,7 +185,7 @@
       position: absolute;
       bottom: calc(100% + 4px);
       left: 50%; transform: translateX(-50%);
-      font-size: 26px; line-height: 1;
+      font-size: 36px; line-height: 1;
       pointer-events: none;
       filter: drop-shadow(0 1px 3px rgba(0,0,0,.55));
     }
@@ -927,7 +927,7 @@ function renderMap() {
       el.style.top  = y + 'px';
 
       // Icon: above the circle if custom icon set, otherwise inside
-      if (icon && classes === 'not-collected') {
+      if (icon && (classes === 'not-collected' || classes === 'collected')) {
         const iconEl = document.createElement('div');
         iconEl.className = 'pin-icon-above';
         iconEl.textContent = icon;
