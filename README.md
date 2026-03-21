@@ -121,11 +121,13 @@ Avaa `game.gpx` tekstieditorissa ja muokkaa seuraavat kohdat:
     <game:hint>Vihjeteksti joka näkyy popup-ikkunassa.</game:hint>
     <!-- Valinnainen: kuva näytetään popupissa vihjetekstin yläpuolella -->
     <game:image>https://sinun-sivusi.fi/kuva1.jpg</game:image>
+    <!-- Valinnainen: kustomoitu ikoni kartalla ja alapalkissa (esim. emoji) -->
+    <game:icon>🏠</game:icon>
   </extensions>
 </wpt>
 ```
 
-`game:id` määrittää kirjainten järjestyksen loppunäytöllä (1, 2, 3...). Pisteet voi kerätä missä järjestyksessä tahansa. `game:image` on valinnainen — jos kenttä puuttuu, popup näyttää vain vihjetekstin.
+`game:id` määrittää kirjainten järjestyksen loppunäytöllä (1, 2, 3...). Pisteet voi kerätä missä järjestyksessä tahansa. `game:image` ja `game:icon` ovat valinnaisia — jos `game:icon` puuttuu, näytetään `?`-merkki; jos `game:image` puuttuu, popup näyttää vain vihjetekstin.
 
 ### 4. Tiedostojen lataus palvelimelle
 
@@ -162,6 +164,7 @@ Varmista että `game:mapImage`- ja `gpxUrl`-osoitteet `game.html`:ssä vastaavat
 | `game:puzzleAnswer` | string | – | Oikea vastaus (kirjainkoolla ei väliä) |
 | `game:hint` | string | – | Vihjeteksti keräilypisteen popupissa |
 | `game:image` | URL | – | (Valinnainen) Kuva keräilypisteen popupissa vihjetekstin yläpuolella |
+| `game:icon` | string | `?` | (Valinnainen) Kustomoitu ikoni kartalla ja alapalkissa (esim. emoji) |
 
 Lisäksi `game.html`:ssä on minimaalinen konfiguraatio:
 

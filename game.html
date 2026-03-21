@@ -541,6 +541,7 @@ async function loadGPX() {
         letter: txt(gget(wpt, 'letter')) || '?',
         hint:   txt(gget(wpt, 'hint'))   || '',
         image:  txt(gget(wpt, 'image'))  || '',
+        icon:   txt(gget(wpt, 'icon'))   || '',
       });
     }
   });
@@ -804,7 +805,9 @@ function buildBottomBar() {
     const collected = state.collected.includes(loc.id);
     const btn       = document.createElement('div');
     btn.className   = `bar-btn ${collected ? 'collected' : 'not-collected'}`;
-    btn.innerHTML   = `<div class="bar-pin">${collected ? '✓' : '?'}</div><div class="bar-num">${loc.id}</div>`;
+    const bPin = document.createElement('div'); bPin.className = 'bar-pin'; bPin.textContent = collected ? '✓' : (loc.icon || '?');
+    const bNum = document.createElement('div'); bNum.className = 'bar-num'; bNum.textContent = loc.id;
+    btn.appendChild(bPin); btn.appendChild(bNum);
     if (collected) btn.addEventListener('click', () => openPopup(loc.id));
     bar.appendChild(btn);
   });
@@ -830,7 +833,7 @@ function renderMap() {
   const H       = img.naturalHeight || document.getElementById('map-container').offsetHeight;
   const EDGE    = 10;
 
-  function placePoint(lat, lon, classes, labelText, distText, onClick) {
+  function placePoint(lat, lon, classes, labelText, distText, onClick, icon) {
     const { x, y } = gpsToPixel(lat, lon);
     const onScreen  = x >= 0 && x <= W && y >= 0 && y <= H;
 
@@ -842,7 +845,8 @@ function renderMap() {
 
       // Icon inside the pin circle
       el.textContent = classes.includes('end-loc') ? '★'
-                     : classes.includes('collected') ? '✓' : '?';
+                     : classes.includes('collected') ? '✓'
+                     : (icon || '?');
 
       // Labels (absolute → don't shift pin position)
       if (labelText || distText) {
@@ -901,7 +905,7 @@ function renderMap() {
       ? Math.round(haversine(state.playerLat, state.playerLon, loc.lat, loc.lon)) + ' m'
       : null;
     placePoint(loc.lat, loc.lon, collected ? 'collected' : 'not-collected', loc.name, dist,
-      collected ? () => openPopup(loc.id) : null);
+      collected ? () => openPopup(loc.id) : null, loc.icon);
   });
 
   const allCollected = state.collected.length === gameConfig.locations.length;

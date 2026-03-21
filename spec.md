@@ -250,6 +250,7 @@ Debug mode is activated by appending `?debug` to the page URL — no code editin
 | `game:letter` | wpt/extensions | Single letter collected at this point |
 | `game:hint` | wpt/extensions | Finnish hint shown in popup |
 | `game:image` | wpt/extensions | (Optional) URL of an image shown in the popup above the hint text |
+| `game:icon` | wpt/extensions | (Optional) Custom marker icon (emoji or text) shown on map and bottom bar; defaults to `?` |
 
 ### GPS to Pixel Coordinate Conversion
 
@@ -356,3 +357,4 @@ Copy the entire `game.html` content into a WordPress **Custom HTML** block. Uplo
 - [x] Map image load: uses `addEventListener('load', …)` with `complete` check to handle already-cached images
 - [x] Security: user-supplied text inserted via `textContent`, not `innerHTML`
 - [x] Zoom buttons: minimum 44 × 44 px tap target
+- [x] Custom marker icon: optional `game:icon` GPX field (emoji/text) shown on map and bottom bar; defaults to `?`
