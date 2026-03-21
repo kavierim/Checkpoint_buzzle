@@ -51,6 +51,7 @@
       <game:id>1</game:id>
       <game:letter>K</game:letter>
       <game:hint>Tämän paikan nimi paljastaa kaiken — kirjaimesi on sen ensimmäinen.</game:hint>
+      <game:icon>🌊</game:icon>
     </extensions>
   </wpt>
 
