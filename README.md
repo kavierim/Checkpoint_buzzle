@@ -138,7 +138,7 @@ Lataa nämä tiedostot palvelimelle (esim. WordPress Media tai FTP):
 | `kartta.png` | Palvelimen juureen tai Media-kirjastoon |
 | `game.gpx` | Palvelimen juureen tai Media-kirjastoon |
 
-Varmista että `game:mapImage`- ja `gpxUrl`-osoitteet `game.html`:ssä vastaavat tiedostojen sijaintia.
+Varmista että `game:mapImage`-osoite GPX-tiedostossa (tai `gpxInline`-lohkossa) vastaa tiedoston sijaintia.
 
 ### 5. Upotus WordPressiin
 
@@ -166,11 +166,15 @@ Varmista että `game:mapImage`- ja `gpxUrl`-osoitteet `game.html`:ssä vastaavat
 | `game:image` | URL | – | (Valinnainen) Kuva keräilypisteen popupissa vihjetekstin yläpuolella |
 | `game:icon` | string | `?` | (Valinnainen) Kustomoitu ikoni kartalla ja alapalkissa (esim. emoji) |
 
-Lisäksi `game.html`:ssä on minimaalinen konfiguraatio:
+Lisäksi `game.html`:ssä on minimaalinen konfiguraatio. Oletuksena GPX upotetaan suoraan tiedostoon (`gpxInline`), mutta sen voi myös ladata palvelimelta:
 
 ```javascript
 const CONFIG = {
-  gpxUrl: "https://sinun-sivusi.fi/game.gpx",  // GPX-tiedoston osoite
+  // Vaihtoehto 1 (oletus): GPX upotettu suoraan — yksitiedostoinen, ei CORS-ongelmia
+  gpxInline: `<?xml ...>`,
+
+  // Vaihtoehto 2: lataa GPX URL:sta (käytä kun GPX on samalla palvelimella)
+  // gpxUrl: "https://sinun-sivusi.fi/game.gpx",
 };
 ```
 
