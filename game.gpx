@@ -8,80 +8,70 @@
                          http://www.topografix.com/GPX/1/1/gpx.xsd">
 
   <metadata>
-    <name>Kotiin päin</name>
+    <name>Latu-arvoitus</name>
 
-    <!-- Kartan nurkkakordinaatit (standardi GPX bounds) -->
+    <!-- Päivitä bounds ja mapImage kun karttakuva on valmis -->
     <!-- topLeft  = maxlat + minlon (NW-kulma) -->
     <!-- bottomRight = minlat + maxlon (SE-kulma) -->
-    <bounds minlat="64.896895" minlon="25.513276"
-            maxlat="64.909018" maxlon="25.544147"/>
+    <bounds minlat="64.899500" minlon="25.557500"
+            maxlat="64.904000" maxlon="25.573500"/>
 
     <extensions>
-      <!-- Karttakuvan URL WordPressistä -->
       <game:mapImage>./kartta.png</game:mapImage>
-
-      <!-- Peliasetukset -->
       <game:geofenceRadius>15</game:geofenceRadius>
       <game:gpsAccuracyLimit>30</game:gpsAccuracyLimit>
       <game:checkAnswer>true</game:checkAnswer>
-
-      <!-- Arvoitus -->
-      <game:puzzleInstruction>Muodosta sana kerätyistä kirjaimista. Vihje: se on paikka johon aina palataan.</game:puzzleInstruction>
-      <game:puzzleAnswer>KOTI</game:puzzleAnswer>
+      <game:puzzleInstruction>Muodosta kerätyistä kirjaimista sana — mikä risteilee tällä alueella?</game:puzzleInstruction>
+      <game:puzzleAnswer>LATU</game:puzzleAnswer>
     </extensions>
   </metadata>
 
   <!-- ═══ LOPPUPISTE (type=end) ═══════════════════════════════════════════ -->
-  <!-- Aktivoituu vasta kun kaikki keräilypisteet on kerätty.               -->
-  <!-- Voi olla sama koordinaatti kuin aloituspiste.                        -->
-  <wpt lat="64.900809" lon="25.527019">
-    <name>Pääskyläntie 2</name>
+  <wpt lat="64.901758" lon="25.562105">
+    <name>Maali</name>
     <type>end</type>
-    <desc>Olet kerännyt kaikki kirjaimet. Muodosta niistä sana — se kertoo missä olet nyt.</desc>
+    <desc>Olet kerännyt kaikki kirjaimet. Muodosta niistä sana — mikä risteilee tällä alueella?</desc>
   </wpt>
 
   <!-- ═══ KERÄILYPISTEET (type=collect) ══════════════════════════════════ -->
-  <!-- game:id määrittää järjestyksen loppunäytöllä (1, 2, 3...)           -->
-  <!-- Pisteet voi kerätä missä järjestyksessä tahansa.                    -->
 
-  <wpt lat="64.905434" lon="25.520382">
-    <name>Koskela</name>
+  <wpt lat="64.902791" lon="25.564495">
+    <name>Takaparkki</name>
     <type>collect</type>
     <extensions>
       <game:id>1</game:id>
-      <game:letter>K</game:letter>
-      <game:hint>Tämän paikan nimi paljastaa kaiken — kirjaimesi on sen ensimmäinen.</game:hint>
-      <game:icon>🌊</game:icon>
+      <game:letter>A</game:letter>
+      <game:hint>Täältä löytyy mm. WC — kätevä levähdyspaikka. Kirjaimesi on kuin huippu: kaksi jalkaa, yksi hattu.</game:hint>
     </extensions>
   </wpt>
 
-  <wpt lat="64.9033" lon="25.5276">
-    <name>Leikkipuisto</name>
+  <wpt lat="64.901605" lon="25.568979">
+    <name>Keinu</name>
     <type>collect</type>
     <extensions>
       <game:id>2</game:id>
-      <game:letter>O</game:letter>
-      <game:hint>Lasten nauru kaartuu ympyrän lailla — juuri kuten kirjaimesi muoto.</game:hint>
+      <game:letter>L</game:letter>
+      <game:hint>Täällä voi keinua tai tehdä töitä etänä. Kirjaimesi seisoo tukevasti — suora pysty, leveä jalka.</game:hint>
     </extensions>
   </wpt>
 
-  <wpt lat="64.904255" lon="25.532262">
-    <name>Työväentalo</name>
+  <wpt lat="64.900646" lon="25.559810">
+    <name>Laavut</name>
     <type>collect</type>
     <extensions>
       <game:id>3</game:id>
-      <game:letter>T</game:letter>
-      <game:hint>Täällä on tehty töitä yhdessä. Kirjaimesi seisoo kuin tukeva teline — leveä hattu, suora selkä.</game:hint>
+      <game:letter>U</game:letter>
+      <game:hint>Köykkyrin laavut ovat mainio paikka syödä eväitä. Kirjaimesi on kuin laavu — avoin ylhäältä, kutsuu sisään.</game:hint>
     </extensions>
   </wpt>
 
-  <wpt lat="64.9012" lon="25.5221">
-    <name>Bussipysäkki</name>
+  <wpt lat="64.902200" lon="25.571910">
+    <name>Nuotiopaikka</name>
     <type>collect</type>
     <extensions>
       <game:id>4</game:id>
-      <game:letter>I</game:letter>
-      <game:hint>Seisot paikallasi ja odotat — juuri kuten kirjaimesi: suora, yksinkertainen, kärsivällinen.</game:hint>
+      <game:letter>T</game:letter>
+      <game:hint>Nuotiopaikka polun varressa — tuli lämmittää ja yhdistää. Kirjaimesi seisoo kuin teline: leveä hattu, suora selkä.</game:hint>
     </extensions>
   </wpt>
 
