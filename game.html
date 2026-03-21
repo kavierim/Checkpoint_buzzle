@@ -496,7 +496,7 @@ async function loadGPX() {
   if (CONFIG.gpxInline) {
     text = CONFIG.gpxInline;
   } else {
-    const res = await fetch(CONFIG.gpxUrl);
+    const res = await fetch(CONFIG.gpxUrl + '?v=' + Date.now());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     text = await res.text();
   }
