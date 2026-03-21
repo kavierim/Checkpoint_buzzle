@@ -798,6 +798,14 @@ function screenToMapDelta(dx, dy) {
   return [cos * dx - sin * dy, sin * dx + cos * dy];
 }
 
+// Convert a screen-space point (relative to map-container top-left) to rotator local space
+function screenToMapPoint(px, py, containerW, containerH) {
+  if (!headingMode) return [px, py];
+  const cx = containerW / 2, cy = containerH / 2;
+  const [ldx, ldy] = screenToMapDelta(px - cx, py - cy);
+  return [cx + ldx, cy + ldy];
+}
+
 function applyMapRotation() {
   const rotator   = document.getElementById('map-rotator');
   const indicator = document.getElementById('north-indicator');
@@ -902,8 +910,9 @@ function setupMapInteraction() {
   container.addEventListener('wheel', e => {
     e.preventDefault();
     const rect   = container.getBoundingClientRect();
-    const pivotX = e.clientX - rect.left;
-    const pivotY = e.clientY - rect.top;
+    const [pivotX, pivotY] = screenToMapPoint(
+      e.clientX - rect.left, e.clientY - rect.top,
+      rect.width, rect.height);
     zoomTo(mapView.scale * (e.deltaY < 0 ? 1.15 : 0.87), pivotX, pivotY);
   }, { passive: false });
 
@@ -939,8 +948,10 @@ function setupMapInteraction() {
         touches[0].clientY - touches[1].clientY);
       if (prevDist === 0) { lastTouches = touches; return; }
 
-      const pivotX = ((touches[0].clientX + touches[1].clientX) / 2) - rect.left;
-      const pivotY = ((touches[0].clientY + touches[1].clientY) / 2) - rect.top;
+      const [pivotX, pivotY] = screenToMapPoint(
+        ((touches[0].clientX + touches[1].clientX) / 2) - rect.left,
+        ((touches[0].clientY + touches[1].clientY) / 2) - rect.top,
+        rect.width, rect.height);
       zoomTo(mapView.scale * (currDist / prevDist), pivotX, pivotY);
     }
     lastTouches = touches;
@@ -951,9 +962,8 @@ function setupMapInteraction() {
   });
 
   // ── Button zoom ──
-  const W = container.offsetWidth, H = container.offsetHeight;
-  document.getElementById('btn-zoom-in') .addEventListener('click', () => zoomTo(mapView.scale * 1.4, W / 2, H / 2));
-  document.getElementById('btn-zoom-out').addEventListener('click', () => zoomTo(mapView.scale / 1.4, W / 2, H / 2));
+  document.getElementById('btn-zoom-in') .addEventListener('click', () => zoomTo(mapView.scale * 1.4, container.offsetWidth / 2, container.offsetHeight / 2));
+  document.getElementById('btn-zoom-out').addEventListener('click', () => zoomTo(mapView.scale / 1.4, container.offsetWidth / 2, container.offsetHeight / 2));
 }
 
 // ── Screen management ─────────────────────────────────────────────────────────
