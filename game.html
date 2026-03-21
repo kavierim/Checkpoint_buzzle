@@ -276,7 +276,7 @@
       z-index: 15;
     }
     .zoom-btn {
-      width: 36px; height: 36px;
+      width: 44px; height: 44px;
       background: rgba(22,33,62,0.9);
       border: 1px solid rgba(255,255,255,0.15);
       border-radius: 8px;
@@ -581,6 +581,7 @@ const state = {
   playerLon:       null,
   playerAccuracy:  null,
   watchId:         null,
+  endToastCooldown: false,
 };
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -684,7 +685,10 @@ function zoomTo(newScale, pivotX, pivotY) {
   applyTransform();
 }
 
+let mapInteractionSetUp = false;
 function setupMapInteraction() {
+  if (mapInteractionSetUp) return;
+  mapInteractionSetUp = true;
   const container = document.getElementById('map-container');
   const world     = document.getElementById('map-world');
 
@@ -895,7 +899,7 @@ function renderMap() {
   });
 
   const allCollected = state.collected.length === gameConfig.locations.length;
-  const endDist      = !allCollected && state.playerLat !== null
+  const endDist      = state.playerLat !== null
     ? Math.round(haversine(state.playerLat, state.playerLon,
         gameConfig.endLocation.lat, gameConfig.endLocation.lon)) + ' m'
     : null;
@@ -935,22 +939,30 @@ function onPosition(pos) {
 
   if (state.screen === 'PLAYING' || state.screen === 'POPUP_OPEN') {
     renderMap();
-    buildBottomBar();
   }
 
   if (state.screen !== 'PLAYING') return;
   if (accuracy > gameConfig.gpsAccuracyLimit) return;
 
-  gameConfig.locations.forEach(loc => {
-    if (state.collected.includes(loc.id)) return;
-    if (haversine(lat, lon, loc.lat, loc.lon) <= gameConfig.geofenceRadius) collectPoint(loc.id);
-  });
+  const prevCount = state.collected.length;
+  for (const loc of gameConfig.locations) {
+    if (state.collected.includes(loc.id)) continue;
+    if (haversine(lat, lon, loc.lat, loc.lon) <= gameConfig.geofenceRadius) {
+      collectPoint(loc.id);
+      break; // one popup at a time — next will open when this one is closed
+    }
+  }
+  if (state.collected.length !== prevCount) buildBottomBar();
 
   const allCollected = state.collected.length === gameConfig.locations.length;
   if (haversine(lat, lon, gameConfig.endLocation.lat, gameConfig.endLocation.lon) <= gameConfig.geofenceRadius) {
-    allCollected
-      ? goToEndScreen()
-      : showToast(`Kerää ensin kaikki pisteet (${state.collected.length}/${gameConfig.locations.length})`);
+    if (allCollected) {
+      goToEndScreen();
+    } else if (!state.endToastCooldown) {
+      state.endToastCooldown = true;
+      showToast(`Kerää ensin kaikki pisteet (${state.collected.length}/${gameConfig.locations.length})`);
+      setTimeout(() => { state.endToastCooldown = false; }, 5000);
+    }
   }
 }
 
@@ -1014,10 +1026,12 @@ function buildEndScreen() {
 
   const grid = document.getElementById('letters-grid');
   grid.innerHTML = '';
-  [...gameConfig.locations].sort((a, b) => a.id - b.id).forEach(loc => {
+  gameConfig.locations.forEach(loc => {
     const card     = document.createElement('div');
     card.className = 'letter-card';
-    card.innerHTML = `<div class="lc-letter">${loc.letter}</div><div class="lc-name">${loc.name}</div>`;
+    const lLetter = document.createElement('div'); lLetter.className = 'lc-letter'; lLetter.textContent = loc.letter;
+    const lName   = document.createElement('div'); lName.className   = 'lc-name';   lName.textContent   = loc.name;
+    card.appendChild(lLetter); card.appendChild(lName);
     grid.appendChild(card);
   });
 
@@ -1041,22 +1055,22 @@ function startGame() {
   state.screen = 'PLAYING';
   document.getElementById('game-title').textContent = gameConfig.title;
   const mapImg = document.getElementById('map-image');
-  mapImg.src    = gameConfig.mapImage;
-  mapImg.onload = function() {
-    const W_i = this.naturalWidth, H_i = this.naturalHeight;
+  function onMapImageReady() {
+    const W_i = mapImg.naturalWidth, H_i = mapImg.naturalHeight;
     const W_c = document.getElementById('map-container').offsetWidth;
     const H_c = document.getElementById('map-container').offsetHeight;
-    // Size map-world to match image
     const world = document.getElementById('map-world');
     world.style.width  = W_i + 'px';
     world.style.height = H_i + 'px';
-    // Initial scale: fit full image in container (contain), then center
-    MIN_SCALE    = Math.min(W_c / W_i, H_c / H_i);
+    MIN_SCALE     = Math.min(W_c / W_i, H_c / H_i);
     mapView.scale = MIN_SCALE;
     clampTranslation();
     applyTransform();
     renderMap();
-  };
+  }
+  mapImg.addEventListener('load', onMapImageReady);
+  mapImg.src = gameConfig.mapImage;
+  if (mapImg.complete) onMapImageReady();
   buildBottomBar();
   showScreen('PLAYING');
   setupMapInteraction();
@@ -1109,10 +1123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('btn-start').addEventListener('click', () => startGame());
 
-  document.getElementById('btn-retry').addEventListener('click', () => {
-    state.screen = 'START';
-    showScreen('START');
-  });
+  document.getElementById('btn-retry').addEventListener('click', () => location.reload());
 
   document.getElementById('btn-close-popup').addEventListener('click', closePopup);
 
