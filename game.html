@@ -180,6 +180,16 @@
     .map-pin:active { transform: translate(-50%,-50%) scale(.88); }
 
 
+    /* Icon above pin circle */
+    .pin-icon-above {
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 50%; transform: translateX(-50%);
+      font-size: 26px; line-height: 1;
+      pointer-events: none;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,.55));
+    }
+
     /* Labels: absolute → don't affect pin-circle position */
     .pin-labels {
       position: absolute;
@@ -364,6 +374,7 @@
       width: 100%; max-height: 180px; object-fit: cover;
       border-radius: 10px; margin-bottom: 14px; display: none;
     }
+    #popup-icon { font-size: 48px; line-height: 1; margin-bottom: 10px; display: none; }
     #popup-hint { font-size: 16px; line-height: 1.55; color: #ccd6e0; margin-bottom: 20px; }
     #popup-letter {
       font-size: 72px; font-weight: 800; color: #ffd700;
@@ -463,6 +474,7 @@
 <div id="popup-overlay">
   <div id="popup-box">
     <div id="popup-name"></div>
+    <div id="popup-icon"></div>
     <img id="popup-image" alt="">
     <div id="popup-hint"></div>
     <div id="popup-letter"></div>
@@ -914,10 +926,17 @@ function renderMap() {
       el.style.left = x + 'px';
       el.style.top  = y + 'px';
 
-      // Icon inside the pin circle
-      el.textContent = classes.includes('end-loc') ? '★'
-                     : classes === 'collected' ? '✓'
-                     : (icon || '?');
+      // Icon: above the circle if custom icon set, otherwise inside
+      if (icon && classes === 'not-collected') {
+        const iconEl = document.createElement('div');
+        iconEl.className = 'pin-icon-above';
+        iconEl.textContent = icon;
+        el.appendChild(iconEl);
+      } else {
+        el.textContent = classes.includes('end-loc') ? '★'
+                       : classes === 'collected' ? '✓'
+                       : '?';
+      }
 
       // Labels (absolute → don't shift pin position)
       if (labelText || distText) {
@@ -1081,6 +1100,9 @@ function openPopup(id) {
   document.getElementById('popup-name').textContent   = loc.name;
   document.getElementById('popup-hint').textContent   = loc.hint;
   document.getElementById('popup-letter').textContent = loc.letter;
+  const popupIcon = document.getElementById('popup-icon');
+  if (loc.icon) { popupIcon.textContent = loc.icon; popupIcon.style.display = 'block'; }
+  else          { popupIcon.textContent = '';        popupIcon.style.display = 'none';  }
   const popupImg = document.getElementById('popup-image');
   if (loc.image) { popupImg.src = loc.image; popupImg.style.display = 'block'; }
   else           { popupImg.src = '';         popupImg.style.display = 'none';  }
