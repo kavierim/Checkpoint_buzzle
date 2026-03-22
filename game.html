@@ -789,13 +789,12 @@ const mapView   = { scale: 1, tx: 0, ty: 0 };
 let headingMode          = false;
 let currentHeading       = 0;   // degrees, clockwise from north
 let headingListenerAdded = false;
+let _cosH = 1, _sinH = 0;      // cached trig for currentHeading
 
 // Convert screen-space drag delta to map-world local space (accounting for rotation)
 function screenToMapDelta(dx, dy) {
   if (!headingMode) return [dx, dy];
-  const rad = currentHeading * Math.PI / 180;
-  const cos = Math.cos(rad), sin = Math.sin(rad);
-  return [cos * dx - sin * dy, sin * dx + cos * dy];
+  return [_cosH * dx - _sinH * dy, _sinH * dx + _cosH * dy];
 }
 
 // Convert a screen-space point (relative to map-container top-left) to rotator local space
@@ -829,7 +828,12 @@ function handleOrientation(event) {
     heading = (360 - event.alpha) % 360;
   }
   if (heading === null) return;
+  const delta = Math.abs(heading - currentHeading) % 360;
+  if (Math.min(delta, 360 - delta) < 1) return;  // skip micro-movements
   currentHeading = heading;
+  const rad = currentHeading * Math.PI / 180;
+  _cosH = Math.cos(rad);
+  _sinH = Math.sin(rad);
   if (headingMode) applyMapRotation();
 }
 
