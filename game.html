@@ -142,17 +142,25 @@
     /* Player face */
     #player-dot {
       position: absolute;
-      font-size: 28px; line-height: 1;
-      transform: translate(-50%, -50%) rotate(0deg);
-      transform-origin: center center;
+      transform: translate(-50%, -50%);
       pointer-events: none;
       z-index: 5;
       display: none;
-      filter: drop-shadow(0 1px 3px rgba(0,0,0,.5));
       transition: left 0.8s ease, top 0.8s ease, transform 0.4s ease;
+    }
+    #player-face {
+      display: block;
+      font-size: 28px; line-height: 1;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,.5));
+      animation: player-pulse 2.2s ease-in-out infinite;
     }
 
     /* Map pin markers */
+    @keyframes player-pulse {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.18); }
+    }
+
     @keyframes icon-swing {
       0%, 100% { transform: translateX(-50%) rotate(0deg); }
       20%       { transform: translateX(-50%) rotate(-18deg); }
@@ -483,7 +491,7 @@
       <div id="map-world">
         <img id="map-image" alt="Kartta" draggable="false">
         <div id="map-overlay">
-          <div id="player-dot"></div>
+          <div id="player-dot"><span id="player-face"></span></div>
           <div id="debug-info"></div>
         </div>
       </div>
@@ -827,12 +835,13 @@ function baseFace(lat, lon) {
 function resetBoredTimer(lat, lon) {
   clearTimeout(boredTimer);
   boredTimer = setTimeout(() => {
-    const dot = document.getElementById('player-dot');
+    const dot  = document.getElementById('player-dot');
+    const face = document.getElementById('player-face');
     if (!dot || dot.style.display === 'none') return;
-    dot.textContent = FACE_BORED;
+    face.textContent = FACE_BORED;
     clearTimeout(faceTimer);
     faceTimer = setTimeout(() => {
-      dot.textContent = baseFace(prevFaceLat ?? lat, prevFaceLon ?? lon);
+      face.textContent = baseFace(prevFaceLat ?? lat, prevFaceLon ?? lon);
     }, 1200);
     resetBoredTimer(lat, lon); // repeat while stationary
   }, 10000);
@@ -846,8 +855,9 @@ function resetFaceState() {
 }
 
 function updatePlayerFace(lat, lon) {
-  const dot = document.getElementById('player-dot');
-  if (!dot.textContent) dot.textContent = baseFace(lat, lon);
+  const dot  = document.getElementById('player-dot');
+  const face = document.getElementById('player-face');
+  if (!face.textContent) face.textContent = baseFace(lat, lon);
 
   if (prevFaceLat !== null) {
     const dist = haversine(prevFaceLat, prevFaceLon, lat, lon);
@@ -856,19 +866,19 @@ function updatePlayerFace(lat, lon) {
       const b = bearing(prevFaceLat, prevFaceLon, lat, lon);
       const screenAngle = headingMode ? (b - currentHeading + 360) % 360 : b;
       dot.style.transform = `translate(-50%, -50%) rotate(${screenAngle}deg)`;
-      dot.textContent = baseFace(lat, lon) === FACE_NEAR ? FACE_MOVE_NEAR : FACE_MOVE;
+      face.textContent = baseFace(lat, lon) === FACE_NEAR ? FACE_MOVE_NEAR : FACE_MOVE;
       clearTimeout(faceTimer);
-      faceTimer = setTimeout(() => { dot.textContent = baseFace(lat, lon); }, 900);
+      faceTimer = setTimeout(() => { face.textContent = baseFace(lat, lon); }, 900);
       resetBoredTimer(lat, lon);
     } else {
       // Stationary — keep base face updated (proximity may have changed)
-      if (dot.textContent !== FACE_MOVE && dot.textContent !== FACE_BORED) {
-        dot.textContent = baseFace(lat, lon);
+      if (face.textContent !== FACE_MOVE && face.textContent !== FACE_BORED) {
+        face.textContent = baseFace(lat, lon);
       }
     }
   } else {
     // First fix
-    dot.textContent = baseFace(lat, lon);
+    face.textContent = baseFace(lat, lon);
     resetBoredTimer(lat, lon);
   }
   prevFaceLat = lat;
@@ -1242,12 +1252,13 @@ function renderMap() {
 
   if (state.playerLat !== null) {
     const { x, y } = gpsToPixel(state.playerLat, state.playerLon);
-    const dot       = document.getElementById('player-dot');
-    dot.style.left    = x + 'px';
-    dot.style.top     = y + 'px';
-    dot.style.display = 'block';
-    dot.style.opacity = state.playerAccuracy > gameConfig.gpsAccuracyLimit ? '0.4' : '1';
-    if (!dot.textContent) dot.textContent = FACE_IDLE;
+    const dot  = document.getElementById('player-dot');
+    const face = document.getElementById('player-face');
+    dot.style.left     = x + 'px';
+    dot.style.top      = y + 'px';
+    dot.style.display  = 'block';
+    face.style.opacity = state.playerAccuracy > gameConfig.gpsAccuracyLimit ? '0.4' : '1';
+    if (!face.textContent) face.textContent = FACE_IDLE;
   }
 
   if (gameConfig.debug) {
