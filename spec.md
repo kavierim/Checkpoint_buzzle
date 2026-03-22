@@ -72,11 +72,11 @@ stateDiagram-v2
 block-beta
   columns 1
   header["Game Title (header, 40 px)"]
-  map["MAP VIEW\n(flex: 1, fills remaining space)\nPan with one finger · Pinch to zoom · +/− buttons"]
+  map["MAP VIEW\n(flex: 1, fills remaining space)\nPan with one finger · Pinch to zoom · 🔎/🔍 buttons\n🧭 heading toggle · 📍 follow toggle"]
   bar["Bottom bar (60 px) — pin icons + number labels · end star"]
 ```
 
-### Start Screen (state: LOADING)
+### Start Screen (state: START)
 - Game title (from GPX `<name>`)
 - Short instruction (Finnish): *"Siirry pisteisiin kartalla ja kerää vihjeet. Lopuksi palaa loppupisteeseen ratkaisemaan arvoitus."*
 - "Aloita peli" button → requests GPS permission
@@ -85,21 +85,33 @@ block-beta
 ### Map View (state: PLAYING / POPUP_OPEN)
 - Map image displayed at its **natural pixel dimensions** — no cropping.
 - Initial zoom set so the **full map fits the screen** (contain-style fit), centered.
-- User can **pan** (one finger / mouse drag) and **zoom** (pinch / scroll wheel / +− buttons).
+- User can **pan** (one finger / mouse drag) and **zoom** (pinch / scroll wheel / 🔎🔍 buttons).
 - Points are rendered using absolutely positioned `<div>` elements overlaid on the map.
+
+**Map control buttons (top-right):**
+
+| Button | Function |
+|---|---|
+| 🧭 | Toggle heading mode — map rotates to keep direction of travel pointing up |
+| 📍 | Toggle follow mode — map stays centered on player; disabled by manual pan |
+| 🔎 | Zoom in |
+| 🔍 | Zoom out |
 
 **Marker styles:**
 
 | Marker | State | Appearance |
 |---|---|---|
-| Collection point | Not collected | Red gradient circle, `?` icon, pulsing glow animation |
-| Collection point | Collected | Green gradient circle, `✓` icon |
+| Collection point | Not collected | Red gradient circle, optional custom icon above (36 px, swinging animation), `?` if no icon |
+| Collection point | Collected | Green gradient circle, optional custom icon above (36 px, static) |
 | End location | Inactive (not all collected) | Muted grey circle, `★` icon, dimmed |
 | End location | Active (all collected) | Gold gradient circle, `★` icon, pulsing glow animation |
-| Player | Good accuracy | Blue pulsing circle |
-| Player | Weak accuracy | Grey circle |
+| Player | Moving | 😲 face (or 😎 if within 80 m of uncollected point), rotates to direction of travel |
+| Player | Near uncollected point (< 80 m) | 🤩 face |
+| Player | Stationary > 10 s | 😊 idle, briefly flashes 🥱 every 10 s |
+| Player | Weak GPS accuracy | Semi-transparent (0.4 opacity) |
 
-- **GPS accuracy warning**: if `accuracy > gpsAccuracyLimit`, player circle is grey and a banner appears: *"GPS-signaali heikko, odota..."*
+- Distance label below each marker: dark text with white shadow.
+- **GPS accuracy warning**: if `accuracy > gpsAccuracyLimit`, player face is semi-transparent and a banner appears: *"GPS-signaali heikko, odota..."*
 
 ### Off-Screen Points
 If a point's calculated pixel coordinate falls outside the map image area:
@@ -300,7 +312,33 @@ flowchart LR
 - `MIN_SCALE` = computed from image and container size after image loads.
 - `MAX_SCALE` = 6.
 - Panning clamped so the image always covers the container — no empty space visible.
-- Touch events attached to `map-world` (not `map-container`) so zoom +/− buttons remain tappable.
+- Touch events attached to `map-world` (not `map-container`) so zoom buttons remain tappable.
+
+### Heading Mode
+- 🧭 button toggles `headingMode` on/off.
+- When on: `#map-rotator` CSS rotated by `-currentHeading` degrees; north indicator shown.
+- Heading from `DeviceOrientationEvent` (iOS: `webkitCompassHeading`; Android: `360 - alpha` when `absolute`).
+- iOS 13+ requires `DeviceOrientationEvent.requestPermission()`.
+- Player face rotation compensates for map rotation: `screenAngle = (bearing - currentHeading + 360) % 360`.
+- `handleOrientation` exits early when `headingMode` is off (battery saving).
+
+### Follow Mode
+- 📍 button toggles `followMode` on/off.
+- When on: after each GPS update, `centerOnPlayer()` repositions map so player is at container center.
+- Manual pan (touchstart / mousedown on map-world) disables follow mode automatically.
+
+### Player Face
+- `#player-dot` (outer div): handles absolute position and bearing rotation via `style.transform`.
+- `#player-face` (inner span): displays emoji, CSS `player-pulse` scale animation (1 → 1.18, 2.2 s).
+- Face states (priority: moving > near > idle):
+
+| Condition | Face |
+|---|---|
+| Moving > 1.5 m, near point (< 80 m) | 😎 for 0.9 s |
+| Moving > 1.5 m | 😲 for 0.9 s |
+| Within 80 m of uncollected point | 🤩 |
+| Stationary > 10 s | 🥱 flash for 1.2 s, repeats every 10 s |
+| Default | 😊 |
 
 ### Debug Mode
 When the `debug` URL parameter is present (e.g. `?debug`):
@@ -340,7 +378,7 @@ Copy the entire `game.html` content into a WordPress **Custom HTML** block. Uplo
 - [x] GPS error states: three cases, each with Finnish message
 - [x] Coordinate conversion: Web Mercator Y-axis, natural image pixel dimensions
 - [x] Map display: natural image size, no object-fit cropping, pan+zoom system
-- [x] Map pan/zoom: one-finger pan, pinch zoom, scroll wheel, +/− buttons
+- [x] Map pan/zoom: one-finger pan, pinch zoom, scroll wheel, 🔎/🔍 buttons
 - [x] Debug mode: activated via `?debug` URL parameter — no code change needed; GPS simulation by tapping map + geofence circles visible
 - [x] Popup: does not auto-close; optional `game:image` shown above hint text if present
 - [x] Bottom bar: 60 px fixed, gradient circle icons matching map markers; rebuilt only on collection state change
@@ -358,4 +396,8 @@ Copy the entire `game.html` content into a WordPress **Custom HTML** block. Uplo
 - [x] Map image load: uses `addEventListener('load', …)` with `complete` check to handle already-cached images
 - [x] Security: user-supplied text inserted via `textContent`, not `innerHTML`
 - [x] Zoom buttons: minimum 44 × 44 px tap target
-- [x] Custom marker icon: optional `game:icon` GPX field (emoji/text) shown on map and bottom bar; defaults to `?`
+- [x] Custom marker icon: optional `game:icon` GPX field shown above marker (36 px, swinging when uncollected) and in popup (48 px) and bottom bar
+- [x] Heading mode: 🧭 button rotates map to keep travel direction up; iOS permission handled
+- [x] Follow mode: 📍 button keeps map centered on player; manual pan disables it
+- [x] Player face emoji: rotates to bearing, animates with pulse; proximity/movement/idle states
+- [x] Distance label: dark text with white shadow (readable on any map background)

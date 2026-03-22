@@ -24,9 +24,11 @@ Selainpohjainen GPS-paikannuspeli mobiilille. Upotetaan WordPress-sivulle.
 1. Pelaaja avaa sivun puhelimella ja aloittaa pelin
 2. Kartalla näkyy keräilypisteet (punaiset) ja loppupiste (kultainen tähti)
 3. Pelaaja kävelee fyysisesti pisteisiin – lähellä ollessaan piste muuttuu vihreäksi ja näyttää vihjeen + kirjaimen
-4. Karttaa voi liikuttaa sormella ja zoomata nipistämällä tai +/− napeilla
-5. Kun kaikki pisteet on kerätty, pelaaja siirtyy loppupisteeseen
-6. Loppunäytöllä pelaaja muodostaa sanan kerätyistä kirjaimista ja ratkaisee arvoituksen
+4. Karttaa voi liikuttaa sormella ja zoomata nipistämällä tai 🔎🔍-napeilla
+5. 🧭-nappi kääntää kartan kulkusuunnan mukaan, 📍-nappi pitää kartan keskitettynä pelaajaan
+6. Pelaajaa kuvaa kasvot-emoji joka kääntyy kulkusuuntaan ja reagoi läheisyyteen
+7. Kun kaikki pisteet on kerätty, pelaaja siirtyy loppupisteeseen
+8. Loppunäytöllä pelaaja muodostaa sanan kerätyistä kirjaimista ja ratkaisee arvoituksen
 
 ---
 
