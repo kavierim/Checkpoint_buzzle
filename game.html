@@ -804,25 +804,71 @@ const MAX_SCALE = 6;
 const mapView   = { scale: 1, tx: 0, ty: 0 };
 
 // ── Player face ───────────────────────────────────────────────────────────────
-const FACE_IDLE = '😊';
-const FACE_MOVE = '😲';
+const FACE_IDLE  = '😊';
+const FACE_MOVE  = '😲';
+const FACE_NEAR  = '🤩';
+const FACE_BORED = '🥱';
+const NEAR_DIST  = 80; // metres
+
 let prevFaceLat = null, prevFaceLon = null;
 let faceTimer   = null;
+let boredTimer  = null;
+
+function baseFace(lat, lon) {
+  if (!gameConfig) return FACE_IDLE;
+  const anyNear = gameConfig.locations.some(
+    loc => !state.collected.includes(loc.id) &&
+           haversine(lat, lon, loc.lat, loc.lon) < NEAR_DIST
+  );
+  return anyNear ? FACE_NEAR : FACE_IDLE;
+}
+
+function resetBoredTimer(lat, lon) {
+  clearTimeout(boredTimer);
+  boredTimer = setTimeout(() => {
+    const dot = document.getElementById('player-dot');
+    if (!dot || dot.style.display === 'none') return;
+    dot.textContent = FACE_BORED;
+    clearTimeout(faceTimer);
+    faceTimer = setTimeout(() => {
+      dot.textContent = baseFace(prevFaceLat ?? lat, prevFaceLon ?? lon);
+    }, 1200);
+    resetBoredTimer(lat, lon); // repeat while stationary
+  }, 10000);
+}
+
+function resetFaceState() {
+  prevFaceLat = prevFaceLon = null;
+  clearTimeout(faceTimer);
+  clearTimeout(boredTimer);
+  faceTimer = boredTimer = null;
+}
 
 function updatePlayerFace(lat, lon) {
   const dot = document.getElementById('player-dot');
-  dot.textContent = dot.textContent || FACE_IDLE;
+  if (!dot.textContent) dot.textContent = baseFace(lat, lon);
 
   if (prevFaceLat !== null) {
     const dist = haversine(prevFaceLat, prevFaceLon, lat, lon);
     if (dist > 1.5) {
+      // Moving — rotate face and flash 😲
       const b = bearing(prevFaceLat, prevFaceLon, lat, lon);
       const screenAngle = headingMode ? (b - currentHeading + 360) % 360 : b;
       dot.style.transform = `translate(-50%, -50%) rotate(${screenAngle}deg)`;
       dot.textContent = FACE_MOVE;
       clearTimeout(faceTimer);
-      faceTimer = setTimeout(() => { dot.textContent = FACE_IDLE; }, 900);
+      faceTimer = setTimeout(() => { dot.textContent = baseFace(lat, lon); }, 900);
+      resetBoredTimer(lat, lon);
+    } else {
+      // Stationary — keep base face updated (proximity may have changed)
+      if (dot.textContent !== FACE_MOVE && dot.textContent !== FACE_BORED) {
+        dot.textContent = baseFace(lat, lon);
+      }
     }
+  } else {
+    // First fix
+    dot.textContent = baseFace(lat, lon);
+    resetBoredTimer(lat, lon);
   }
   prevFaceLat = lat;
   prevFaceLon = lon;
@@ -1441,6 +1487,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (state.watchId !== null) { navigator.geolocation.clearWatch(state.watchId); state.watchId = null; }
     closePopup();
     state.playerLat = state.playerLon = state.playerAccuracy = null;
+    resetFaceState();
     mapView.scale = 1; mapView.tx = 0; mapView.ty = 0;
     startGame();
   });
@@ -1468,6 +1515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearProgress();
     if (state.watchId !== null) { navigator.geolocation.clearWatch(state.watchId); state.watchId = null; }
     state.playerLat = state.playerLon = state.playerAccuracy = null;
+    resetFaceState();
     state.screen    = 'START';
     showScreen('START');
   });
