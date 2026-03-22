@@ -805,7 +805,8 @@ const mapView   = { scale: 1, tx: 0, ty: 0 };
 
 // ── Player face ───────────────────────────────────────────────────────────────
 const FACE_IDLE  = '😊';
-const FACE_MOVE  = '😲';
+const FACE_MOVE      = '😲';
+const FACE_MOVE_NEAR = '🏃';
 const FACE_NEAR  = '🤩';
 const FACE_BORED = '🥱';
 const NEAR_DIST  = 80; // metres
@@ -855,7 +856,7 @@ function updatePlayerFace(lat, lon) {
       const b = bearing(prevFaceLat, prevFaceLon, lat, lon);
       const screenAngle = headingMode ? (b - currentHeading + 360) % 360 : b;
       dot.style.transform = `translate(-50%, -50%) rotate(${screenAngle}deg)`;
-      dot.textContent = FACE_MOVE;
+      dot.textContent = baseFace(lat, lon) === FACE_NEAR ? FACE_MOVE_NEAR : FACE_MOVE;
       clearTimeout(faceTimer);
       faceTimer = setTimeout(() => { dot.textContent = baseFace(lat, lon); }, 900);
       resetBoredTimer(lat, lon);
