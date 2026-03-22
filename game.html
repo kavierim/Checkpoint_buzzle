@@ -139,21 +139,18 @@
 
     /* Toast is outside map-world so it stays fixed on screen */
 
-    /* Player dot */
+    /* Player face */
     #player-dot {
       position: absolute;
-      width: 16px; height: 16px;
-      border-radius: 50%;
-      background: #3498db;
-      border: 2px solid #fff;
-      box-shadow: 0 0 0 5px rgba(52,152,219,0.25);
-      transform: translate(-50%, -50%);
+      font-size: 28px; line-height: 1;
+      transform: translate(-50%, -50%) rotate(0deg);
+      transform-origin: center center;
       pointer-events: none;
       z-index: 5;
       display: none;
-      transition: left 0.8s ease, top 0.8s ease;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,.5));
+      transition: left 0.8s ease, top 0.8s ease, transform 0.4s ease;
     }
-    #player-dot.weak { background: #7f8c8d; box-shadow: 0 0 0 5px rgba(127,140,141,0.25); }
 
     /* Map pin markers */
     @keyframes icon-swing {
@@ -753,6 +750,14 @@ function clearProgress() {
 }
 
 // ── Maths ─────────────────────────────────────────────────────────────────────
+function bearing(lat1, lon1, lat2, lon2) {
+  const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const y  = Math.sin(Δλ) * Math.cos(φ2);
+  const x  = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
 function haversine(lat1, lon1, lat2, lon2) {
   const R    = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -797,6 +802,31 @@ function pxPerMetre(lat, lon) {
 let   MIN_SCALE = 0.5;  // updated after image loads
 const MAX_SCALE = 6;
 const mapView   = { scale: 1, tx: 0, ty: 0 };
+
+// ── Player face ───────────────────────────────────────────────────────────────
+const FACE_IDLE = '😊';
+const FACE_MOVE = '😲';
+let prevFaceLat = null, prevFaceLon = null;
+let faceTimer   = null;
+
+function updatePlayerFace(lat, lon) {
+  const dot = document.getElementById('player-dot');
+  dot.textContent = dot.textContent || FACE_IDLE;
+
+  if (prevFaceLat !== null) {
+    const dist = haversine(prevFaceLat, prevFaceLon, lat, lon);
+    if (dist > 1.5) {
+      const b = bearing(prevFaceLat, prevFaceLon, lat, lon);
+      const screenAngle = headingMode ? (b - currentHeading + 360) % 360 : b;
+      dot.style.transform = `translate(-50%, -50%) rotate(${screenAngle}deg)`;
+      dot.textContent = FACE_MOVE;
+      clearTimeout(faceTimer);
+      faceTimer = setTimeout(() => { dot.textContent = FACE_IDLE; }, 900);
+    }
+  }
+  prevFaceLat = lat;
+  prevFaceLon = lon;
+}
 
 // ── Follow mode ───────────────────────────────────────────────────────────────
 let followMode = false;
@@ -1169,7 +1199,8 @@ function renderMap() {
     dot.style.left    = x + 'px';
     dot.style.top     = y + 'px';
     dot.style.display = 'block';
-    dot.className     = state.playerAccuracy > gameConfig.gpsAccuracyLimit ? 'weak' : '';
+    dot.style.opacity = state.playerAccuracy > gameConfig.gpsAccuracyLimit ? '0.4' : '1';
+    if (!dot.textContent) dot.textContent = FACE_IDLE;
   }
 
   if (gameConfig.debug) {
@@ -1195,6 +1226,7 @@ function onPosition(pos) {
 
   if (state.screen === 'PLAYING' || state.screen === 'POPUP_OPEN') {
     renderMap();
+    updatePlayerFace(lat, lon);
     if (followMode) centerOnPlayer();
   }
 
