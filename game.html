@@ -837,7 +837,7 @@ function resetBoredTimer(lat, lon) {
   boredTimer = setTimeout(() => {
     const dot  = document.getElementById('player-dot');
     const face = document.getElementById('player-face');
-    if (!dot || dot.style.display === 'none') return;
+    if (!dot || !face || dot.style.display === 'none') return;
     face.textContent = FACE_BORED;
     clearTimeout(faceTimer);
     faceTimer = setTimeout(() => {
