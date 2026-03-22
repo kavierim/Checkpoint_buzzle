@@ -486,6 +486,7 @@
     </div>
     <div id="zoom-controls">
       <div class="zoom-btn" id="btn-heading" title="Kulkusuunta ylhäällä">⬆</div>
+      <div class="zoom-btn" id="btn-follow" title="Seuraa sijaintia">📍</div>
       <div class="zoom-btn" id="btn-zoom-in">+</div>
       <div class="zoom-btn" id="btn-zoom-out">−</div>
     </div>
@@ -785,6 +786,24 @@ let   MIN_SCALE = 0.5;  // updated after image loads
 const MAX_SCALE = 6;
 const mapView   = { scale: 1, tx: 0, ty: 0 };
 
+// ── Follow mode ───────────────────────────────────────────────────────────────
+let followMode = false;
+
+function setFollowMode(on) {
+  followMode = on;
+  document.getElementById('btn-follow').classList.toggle('active', on);
+}
+
+function centerOnPlayer() {
+  if (state.playerLat === null) return;
+  const { x, y } = gpsToPixel(state.playerLat, state.playerLon);
+  const c = document.getElementById('map-container');
+  mapView.tx = c.offsetWidth  / 2 - x * mapView.scale;
+  mapView.ty = c.offsetHeight / 2 - y * mapView.scale;
+  clampTranslation();
+  applyTransform();
+}
+
 // ── Heading / compass mode ────────────────────────────────────────────────────
 let headingMode          = false;
 let currentHeading       = 0;   // degrees, clockwise from north
@@ -897,6 +916,7 @@ function setupMapInteraction() {
   world.addEventListener('mousedown', e => {
     drag = { x: e.clientX, y: e.clientY, tx: mapView.tx, ty: mapView.ty };
     world.classList.add('dragging');
+    setFollowMode(false);
     e.preventDefault();
   });
   window.addEventListener('mousemove', e => {
@@ -924,6 +944,7 @@ function setupMapInteraction() {
   world.addEventListener('touchstart', e => {
     e.preventDefault();
     lastTouches = Array.from(e.touches);
+    setFollowMode(false);
   }, { passive: false });
 
   world.addEventListener('touchmove', e => {
@@ -967,6 +988,12 @@ function setupMapInteraction() {
   // ── Button zoom ──
   document.getElementById('btn-zoom-in') .addEventListener('click', () => zoomTo(mapView.scale * 1.4, container.offsetWidth / 2, container.offsetHeight / 2));
   document.getElementById('btn-zoom-out').addEventListener('click', () => zoomTo(mapView.scale / 1.4, container.offsetWidth / 2, container.offsetHeight / 2));
+
+  // ── Follow button ──
+  document.getElementById('btn-follow').addEventListener('click', () => {
+    setFollowMode(!followMode);
+    if (followMode) centerOnPlayer();
+  });
 }
 
 // ── Screen management ─────────────────────────────────────────────────────────
@@ -1155,6 +1182,7 @@ function onPosition(pos) {
 
   if (state.screen === 'PLAYING' || state.screen === 'POPUP_OPEN') {
     renderMap();
+    if (followMode) centerOnPlayer();
   }
 
   if (state.screen !== 'PLAYING') return;
