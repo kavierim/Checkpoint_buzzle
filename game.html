@@ -797,7 +797,6 @@ function screenToMapDelta(dx, dy) {
   return [_cosH * dx - _sinH * dy, _sinH * dx + _cosH * dy];
 }
 
-// Convert a screen-space point (relative to map-container top-left) to rotator local space
 function screenToMapPoint(px, py, containerW, containerH) {
   if (!headingMode) return [px, py];
   const cx = containerW / 2, cy = containerH / 2;
@@ -828,8 +827,8 @@ function handleOrientation(event) {
     heading = (360 - event.alpha) % 360;
   }
   if (heading === null) return;
-  const delta = Math.abs(heading - currentHeading) % 360;
-  if (Math.min(delta, 360 - delta) < 1) return;  // skip micro-movements
+  const delta = Math.abs(heading - currentHeading);
+  if (Math.min(delta, 360 - delta) < 1) return;  // suppress sensor jitter
   currentHeading = heading;
   const rad = currentHeading * Math.PI / 180;
   _cosH = Math.cos(rad);
