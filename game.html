@@ -849,6 +849,7 @@ function applyMapRotation() {
 }
 
 function handleOrientation(event) {
+  if (!headingMode) return;
   let heading = null;
   if (typeof event.webkitCompassHeading === 'number' && !isNaN(event.webkitCompassHeading)) {
     // iOS: webkitCompassHeading is degrees clockwise from magnetic north
