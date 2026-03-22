@@ -861,11 +861,12 @@ function updatePlayerFace(lat, lon) {
 
   if (prevFaceLat !== null) {
     const dist = haversine(prevFaceLat, prevFaceLon, lat, lon);
-    if (dist > 1.5) {
+    if (dist > 0.5) {
       // Moving — rotate face and flash 😲
       const b = bearing(prevFaceLat, prevFaceLon, lat, lon);
-      const screenAngle = headingMode ? (b - currentHeading + 360) % 360 : b;
-      dot.style.transform = `translate(-50%, -50%) rotate(${screenAngle}deg)`;
+      // face is inside map-rotator which already applies -currentHeading,
+      // so raw bearing b is correct in both north-up and heading mode
+      dot.style.transform = `translate(-50%, -50%) rotate(${b}deg)`;
       face.textContent = baseFace(lat, lon) === FACE_NEAR ? FACE_MOVE_NEAR : FACE_MOVE;
       clearTimeout(faceTimer);
       faceTimer = setTimeout(() => { face.textContent = baseFace(lat, lon); }, 900);
@@ -946,9 +947,10 @@ function handleOrientation(event) {
     heading = (360 - event.alpha) % 360;
   }
   if (heading === null) return;
-  const delta = Math.abs(heading - currentHeading);
-  if (Math.min(delta, 360 - delta) < 1) return;  // suppress sensor jitter
-  currentHeading = heading;
+  // Smooth heading with EMA — handles circular wraparound (e.g. 350°→10°)
+  const diff = ((heading - currentHeading + 540) % 360) - 180;
+  if (Math.abs(diff) < 0.5) return;  // suppress micro-jitter
+  currentHeading = (currentHeading + 0.15 * diff + 360) % 360;
   const rad = currentHeading * Math.PI / 180;
   _cosH = Math.cos(rad);
   _sinH = Math.sin(rad);
